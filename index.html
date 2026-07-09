@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Véloc'Annecy - Location de Vélos au Lac d'Annecy</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Bandeau d'Alerte Info / Météo (Facile à activer/désactiver) -->
+    <div class="alert-banner">
+        <a href="#info-resa" style="text-decoration: none; color: inherit">⚠️Réservation par <a href="tel:+33648122184" style="color: inherit">téléphone</a> ou <a href="#contact" style="color: inherit">en magasin</a>⚠️</a>
+    </div>
+
+    <!-- En-tête / Navigation -->
+    <header class="with-banner">
+        <div class="container header-flex">
+            <div class="logo">
+                <a href="#"><img src="assets/logo_veloc.png" alt="Véloc'Annecy Logo" class="logo-img"></a>
+            </div>
+
+            <button class="burger-menu" id="burger-btn" aria-label="Ouvrir le menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+
+            <nav id="nav-menu">
+                <a href="#gamme">Nos Vélos</a>
+                <a href="#tarifs">Tarifs</a>
+                <a href="#assistance">Assistance</a>
+                <div class="hero-buttons">
+                    <a href="#contact" class="btn-primary">Nous Trouver</a>
+                    <a href="tel:+33648122184" class="btn-secondary">Réserver</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Section Héro / Accueil -->
+    <section class="hero">
+        <div class="container hero-content">
+            <h2>Louez votre vélo à deux pas du Lac d'Annecy</h2>
+
+            <div>
+                <p>VTC, Vélos Électriques (VAE), Tandems et vélos enfants</p>
+                <p>L'adresse idéale pour faire le tour du lac en toute sérénité</p>
+                <p><strong style="font-size: 28px">de 8h à 21h !</strong></p>
+            </div>
+            <div class="hero-buttons">
+                <a href="#tarifs" class="btn-primary">Voir les Tarifs</a>
+                <a href="tel:+33648122184" class="btn-secondary">Réserver</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="lac" class="section-padding">
+        <div class="container">
+            <h2 class="section-title">Tour du Lac</h2>
+            <div class="grid-two-columns">
+                <div class="lac-content">
+                    <h3>Le parcours incontournable à Annecy</h3>
+                    <p>Élu parmi les plus belles balades à vélo de France, avec ses 38 km le tour du Lac d'Annecy vous offre des panoramas exceptionnels entre eaux turquoise et montagnes.</p>
+                    <br>
+                    <p>Idéal en famille, en couple ou entre amis, le parcours emprunte majoritairement une voie verte sécurisée et plate.</p>
+                    <br>
+                    <p>Profitez au maximum du Lac grâce à nos plage horaire XXL de <strong style="font-size: 24px">8h à 21h</strong>. Vous ne trouverez pas mieux ailleurs.</p>
+                </div>
+                <div class="tour-lac-media">
+                    <img src="assets/trace.png" alt="Tracé tour du lac d'Annecy" class="velo-img" style="object-fit: cover; width: 100%; height: 100%; border-radius: 12px;">
+                </div>
+            </div>
+            <div class="hero-buttons" style="text-align: center; margin-top: 40px">
+                <a href="tour-du-lac.html" class="btn-primary" style="margin: 0; text-decoration: none;">🗺️ En savoir plus...</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Gamme de Vélos -->
+    <section id="gamme" class="section-padding">
+        <div class="container">
+            <h2 class="section-title">Nos Vélos</h2>
+            <div class="grid-velos">
+                <!-- Vélo Électrique -->
+                <div class="card-velo">
+                    <div class="velo-img-container">
+                        <img src="assets/t7s.webp" alt="Vélo à Assistance Électrique NCM" class="velo-img">
+                    </div>
+                    <h3>Vélo électrique - VAE</h3>
+                    <div class="velo-desc">Idéal pour affronter les côtes ou faire le tour du lac sans effort.</div>
+                    <span class="tag">80 km d'autonomie</span>
+                </div>
+                <!-- VTC Confort -->
+                <div class="card-velo">
+                    <div class="velo-img-container">
+                        <img src="assets/120.png" alt="VTC Confort Riverside" class="velo-img">
+                    </div>
+                    <h3>Vélo classique - VTC</h3>
+                    <div class="velo-desc">Parfait pour le tour du lac sur la piste cyclable.</div>
+                    <span class="tag">Léger et réactif</span>
+                </div>
+                <!-- Tandem (en attente de votre image si besoin) -->
+                <div class="card-velo">
+                    <div class="velo-img-container">
+                        <img src="assets/tandem.jpg" alt="Vélo enfant" class="velo-img">
+                    </div>
+                    <h3>Tandem</h3>
+                    <div class="velo-desc">
+                        Confort maximum, idéal sur le plat
+                        <div class="velo-warning">⚠️ Tour du lac déconseillé</div>
+                    </div>
+                    <span class="tag">Idéal couples / amis</span>
+                </div>
+                <!-- Gamme Enfants -->
+                <div class="card-velo">
+                    <div class="velo-img-container">
+                        <img src="assets/enfant.png" alt="Vélo enfant" class="velo-img">
+                    </div>
+                    <h3>Vélo enfant</h3>
+                    <div class="velo-desc">De 16 à 26 pouces</div>
+                    <span class="tag">Pour les petits</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Tarifs -->
+    <section id="tarifs" class="section-padding bg-light">
+        <div class="container">
+            <h2 class="section-title">Nos Tarifs</h2>
+            <p class="section-subtitle"><strong>Casque et antivol inclus</strong> dans votre location.</p>
+
+            <p class="mobile-scroll-help">👉 Défilez horizontalement pour voir tout le tableau</p>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type de Vélo</th>
+                            <th>0 à 2h</th>
+                            <th>2 à 4h</th>
+                            <th>
+                                <div style="font-size: 14px">Journée courte</div>
+                                4 à 6h
+                                <div style="font-size: 11px">Short day</div>
+                            </th>
+                            <th>
+                                <div style="font-size: 14px">Journée longue</div>
+                                + de 6h
+                                <div style="font-size: 11px">Long day</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Électrique - VAE</strong></td>
+                            <td>26 €</td>
+                            <td>34 €</td>
+                            <td>46 €</td>
+                            <td>50 €</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Classique - VTC</strong></td>
+                            <td>14 €</td>
+                            <td>18 €</td>
+                            <td>24 €</td>
+                            <td>27 €</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Tandem</strong></td>
+                            <td>45 €</td>
+                            <td>45 €</td>
+                            <td>60 €</td>
+                            <td>60 €</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Enfant</strong></td>
+                            <td>8 €</td>
+                            <td>12 €</td>
+                            <td>18 €</td>
+                            <td>22 €</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="mobile-scroll-help">👉 Défilez horizontalement pour voir tout le tableau</p>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type de Vélo</th>
+                            <th>24h</th>
+                            <th>
+                                12h supp.
+                                <div style="font-size: 11px">12h extra</div>
+                            </th>
+                            <th>
+                                Semaine
+                                <div style="font-size: 11px">Week</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Électrique - VAE</strong></td>
+                            <td>80 €</td>
+                            <td>35 €</td>
+                            <td>390 €</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Classique - VTC</strong></td>
+                            <td>40 €</td>
+                            <td>18 €</td>
+                            <td>190 €</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Enfant</strong></td>
+                            <td>30 €</td>
+                            <td>12 €</td>
+                            <td>150 €</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="price-info">
+                <p>
+                    Location casque seul ou antivol seul (sans vélo) : 5 € par jour
+                </p>
+                <p>
+                    +6h/journée longue - Applicable si le vélo est restitué le jour même avant la fermeture du magasin (voir horaires Google MAPS)
+                </p>
+                <p>
+                    Siège bébé - compatible uniquement avec les vélos électriques
+                </p>
+                <p>
+                    VTC - Vélo tout chemin
+                </p>
+                <p>
+                    VAE - Vélo à assistance électrique
+                </p>
+                <p>
+                    24h - Applicable pour une durée inférieur à 24h à compter de la date et l’heure de départ. Ex : De 13h le jour J à 13h le lendemain. Sous réserve de disponibilité.
+                </p>
+                <p>
+                    12 supp. - Applicable pour chaque tranche de 12h entamée en plus de 24h. Ex : De 13h le jour J à 17h le sur lendemain (soit 52h = 1 x 24h + 3 x 12h supp). Sous réserve de disponibilité.
+                </p>
+                <p>
+                    Semaine - Applicable pour 7 jours consécutifs. Ex : Du lundi 12h au lundi suivant 12h, (moins de 168h au total). Sous réserve de disponibilité
+                </p>
+            </div>
+
+            <div class="simulator-wrapper-accordion">
+                <button class="toggle-sim-btn" id="btn-toggle-short">
+                    <span>⚡ Simulateur tarifs courte durée (retour le jour même)</span>
+                    <span class="arrow">▼</span>
+                </button>
+
+                <div class="simulator-box" id="box-short" style="display: none;">
+                    <p style="font-style:italic; margin-bottom: 10px">Choisissez votre vélo et faites glisser les curseurs pour définir vos heures de location (Ouvert de 8h à 21h).</p>
+
+                    <div class="simulator-select-container">
+                        <label for="bike-select"><strong>Sélectionnez un modèle :</strong></label>
+                        <select id="bike-select" class="bike-dropdown">
+                            <option value="vae">Vélo électrique - VAE</option>
+                            <option value="vtc" selected>Vélo classique - VTC</option>
+                            <option value="tandem">Tandem</option>
+                            <option value="enfant">Vélo enfant</option>
+                        </select>
+                    </div>
+
+                    <div class="slider-wrapper">
+                        <div class="slider-track"></div>
+                        <input type="range" id="slider-start" min="480" max="1260" value="540" step="10">
+                        <input type="range" id="slider-end" min="480" max="1260" value="780" step="10">
+                    </div>
+
+                    <div class="hours-display">
+                        <div>🛫 Départ : <span id="time-start">09h00</span></div>
+                        <div class="duration-badge">⏳ Durée : <span id="calc-duration">4h</span></div>
+                        <div>🛬 Retour : <span id="time-end">13h00</span></div>
+                    </div>
+
+                    <div id="simulator-warning" class="sim-error-msg" style="display:none;"></div>
+
+                    <div class="sim-single-result">
+                        <div class="sim-card highlighted">
+                            <h4 id="sim-bike-title">Vélo classique - VTC</h4>
+                            <div class="sim-price" id="sim-final-price">18 €</div>
+                            <span class="tag" id="sim-bike-tag">Léger et réactif</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="simulator-wrapper-accordion" style="margin-top: 20px;">
+                <button class="toggle-sim-btn" id="btn-toggle-long">
+                    <span>📅 Simulateur tarifs longue durée</span>
+                    <span class="arrow">▼</span>
+                </button>
+
+                <div class="simulator-box long-duration-box" id="box-long" style="display: none; margin-top: 0;">
+                    <p style="font-style:italic; margin-bottom: 10px">Choisissez votre vélo et selectionnez vos heures de location (Ouvert de 8h à 21h).</p>
+
+                    <div class="simulator-select-container">
+                        <label for="bike-select-ld"><strong>Modèle :</strong></label>
+                        <select id="bike-select-ld" class="bike-dropdown">
+                            <option value="vae">Vélo électrique - VAE</option>
+                            <option value="vtc" selected>Vélo classique - VTC</option>
+                            <option value="enfant">Vélo enfant</option>
+                        </select>
+                    </div>
+
+                    <div class="date-picker-grid">
+                        <div class="date-input-group">
+                            <label for="ld-start">🛫 Début de la location :</label>
+                            <input type="datetime-local" id="ld-start" min="2026-01-01T08:00" max="2026-12-31T21:00" step="3600">
+                        </div>
+                        <div class="date-input-group">
+                            <label for="ld-end">🛬 Fin de la location :</label>
+                            <input type="datetime-local" id="ld-end" min="2026-01-01T08:00" max="2026-12-31T21:00" step="3600">
+                        </div>
+                    </div>
+
+                    <div class="hours-display">
+                        <div class="duration-badge long-duration-badge">
+                            ⏳ Durée totale : <span id="ld-calc-duration">7 jours</span>
+                        </div>
+                    </div>
+
+                    <div id="ld-warning" class="sim-error-msg" style="display:none;"></div>
+
+                    <div class="sim-single-result">
+                        <div class="sim-card highlighted">
+                            <h4 id="ld-bike-title">Vélo classique - VTC</h4>
+                            <div class="sim-price" id="ld-final-price">- €</div>
+                            <span class="tag" id="ld-bike-tag">Léger et réactif</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Tarifs -->
+    <section id="louer" class="section-padding">
+        <div class="container">
+            <h2 class="section-title">Comment louer ?</h2>
+
+            <div>
+                <ol class="expl-list">
+                    <li><strong>Venez :</strong> avec ou sans réservation</li>
+                    <li><strong>Choisissez :</strong> le modèle selon votre profil</li>
+                    <li><strong>Roulez :</strong> au bord du Lac sur des pistes cyclables très bien aménagées</li>
+                    <li><strong>Profitez :</strong> des paysages à couper le souffle avec la possiblité de se baigner à chaque instant</li>
+                    <li><strong>Restituez :</strong> quand vous le souhaitez (avant la fermeture) et payez au retour selon le temps effectué avec le vélo</li>
+                </ol>
+            </div>
+
+            <div id="info-resa" class="regles-box">
+                <h3>⚠️ À savoir avant de venir :</h3>
+                <ul>
+                    <li><strong>Réservations :</strong> Uniquement par téléphone, la veille au plus tard, pour récupérer les vélos le matin dans un créneau précis entre 8h et 10h45. Après 11h, les départs se font sans réservation en flux continu selon les vélos disponibles et selon la règle du "Premier arrivé, premier servi". Il n'est donc pas possible de réserver un vélo pour le jour même.</li>
+                    <li><strong>Retards :</strong> Toute réservation est maintenue 15 minutes. Au-delà, le vélo est remis en location. Impossible de décaler une réservation le jour même.</li>
+                    <li><strong>Caution :</strong> Une pièce d'identité et une caution par carte bancaire vous sera demandée au départ.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Assistance & Fonctionnement -->
+    <section id="assistance" class="section-padding" style="padding-top: 0; scroll-margin-top: 160px;">
+        <div class="container">
+            <div class="assistance-box">
+                <h3>🛠️ Assistance Véloc'Annecy</h3>
+                <p>Une crevaison ? Un problème technique pendant votre sortie autour du lac ?</p>
+                <p>Pas de panique, notre équipe reste joignable en permanence. En cas de gros pépin, nous déclenchons une assistance rapide pour vous permettre de finir votre balade.</p>
+                <div class="hero-buttons">
+                    <a href="assistance.html" class="btn-primary" style="margin: 0">Urgence Assistance</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Contact, Horaires & Plan -->
+    <section id="contact" class="section-padding bg-dark">
+        <div class="container grid-two-columns">
+            <div class="contact-info">
+                <h2>Où nous trouver ?</h2>
+
+                <div class="footer-info">
+                    <h3>📍 Adresse</h3>
+                    <p> 7 Rue Président Favre, 74000 Annecy</p>
+                    <p style="font-size: 14px;font-style: italic">À 30m de l'office du tourisme, accès rapide au lac</p>
+                </div>
+
+                <div class="footer-info">
+                    <h3>📞 Téléphone</h3>
+                    <p><a href="tel:+33648122184" style="font-size: 24px">(+33) 06 48 12 21 84</a></p>
+                </div>
+
+                <div class="footer-info">
+                    <h3>🕒 Horaires d'ouverture XXL</h3>
+                    <p>Ouvert 7j/7 de <strong style="font-size: 24px">8h à 21h</strong></p>
+                    <br>
+                    <p>La location de vélo avec la plus grande plage horaire sur Annecy</p>
+
+                </div>
+
+            </div>
+            <div class="map-placeholder">
+                <!-- Intégration de la carte Google Maps simplifiée -->
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1915.7690157340292!2d6.1282373956964475!3d45.902222969847934!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x478b8f93a7325f19%3A0x1095d95d83442490!2sV%C3%A9loc&#39;%20Location%20de%20v%C3%A9lo%20%C3%A0%20Annecy!5e1!3m2!1sfr!2sfr!4v1782477119082!5m2!1sfr!2sfr" width="100%" height="300" style="border:0; border-radius: 8px;" allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container text-center">
+            <p>&copy; 2026 Véloc'Annecy - Tous droits réservés.</p>
+            <p style="margin-top: 10px;"><a href="cgv.html" style="color: #64748b; text-decoration: underline; font-size: 0.85rem;">Conditions Générales de Vente (CGV)</a></p>
+        </div>
+    </footer>
+
+    <!-- Fenêtre Popup / Modal -->
+    <div id="promo-popup" class="popup-overlay">
+        <div class="popup-content">
+            <!-- Bouton Fermer -->
+            <button class="popup-close" id="close-popup">&times;</button>
+
+            <!-- Conteneur du Carrousel -->
+            <div class="popup-carousel">
+
+                <!-- Slide 1 : Le Tour du Lac -->
+                <div class="popup-slide active">
+                    <div class="popup-flex-container">
+                        <div class="popup-image-container">
+                            <img src="assets/louer.png" alt="Le Tour du Lac à Vélo">
+                        </div>
+                        <div class="popup-text">
+                            <h3>Faite le plein d'accessoires</h3>
+                            <p>Louez les accessoires qu'il vous manque pour profiter de l'été</p>
+                            <div class="hero-buttons">
+                                <a href="index.html#contact" class="btn-primary" style="display: inline-block; text-decoration: none;">J'en profite</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Une autre action (ex: Réservation / Offre Électrique) -->
+                <div class="popup-slide">
+                    <div class="popup-flex-container">
+                        <div class="popup-image-container">
+                            <img src="assets/balade.png" alt="Nos Vélos Électriques">
+                        </div>
+                        <div class="popup-text">
+                            <h3>Balade guidée</h3>
+                            <p>Découvrez le lac et ses secrets avec nos guides</p>
+                            <div class="hero-buttons">
+                                <a href="https://www.fix-bike.fr/#balade" class="btn-primary" style="display: inline-block; text-decoration: none;">En savoir plus...</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Flèches de Navigation du Carrousel -->
+            <button class="carousel-nav prev" id="popup-prev">&#10094;</button>
+            <button class="carousel-nav next" id="popup-next">&#10096;</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="burger_menu.js"></script>
+
+</body>
+
+</html>
