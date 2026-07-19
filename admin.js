@@ -11,6 +11,16 @@ const STORAGE_ITEMS_KEY = 'veloc_reservation_items';
 const FLEET_STORAGE_KEY = 'veloc_fleet';
 const WALKIN_KEY = 'veloc_walkin';
 const DEVICE_NAME_KEY = 'veloc_device_name';
+function getDeviceType() {
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return '📱 iPhone';
+    if (/iPad/i.test(ua)) return '📱 iPad';
+    if (/Android/i.test(ua)) return '📱 Android';
+    if (/Mac/i.test(ua)) return '💻 Mac';
+    if (/Windows/i.test(ua)) return '💻 PC Windows';
+    if (/Linux/i.test(ua)) return '💻 Linux';
+    return '📱 Appareil inconnu';
+}
 
 function loadFleetLocal() {
     try {
@@ -239,10 +249,17 @@ function setupRealtime() { if (!useSupabase || !window._supabase) return; if (_r
 async function init() {
     initSupabase(); if (window._supabase) { const ready = await isSupabaseReady(); if (ready) { useSupabase = true; setDbStatus(true); setupRealtime(); } else setDbStatus(false); } else setDbStatus(false);
     setupDateNav(); setupQtyControls(); setupWalkin(); await syncFleetFromDB();
-    // Charger le nom du poste depuis localStorage
+    // Détection auto de l'appareil + sauvegarde localStorage
     const deviceInput = document.getElementById('device-name-input');
     if (deviceInput) {
-        deviceInput.value = localStorage.getItem(DEVICE_NAME_KEY) || '';
+        const saved = localStorage.getItem(DEVICE_NAME_KEY);
+        if (saved) {
+            deviceInput.value = saved;
+        } else {
+            const auto = getDeviceType() + ' - ' + (navigator.userAgent.match(/Chrome\/(\S+)/)?.[1] ? 'Chrome' : navigator.userAgent.match(/Safari\//) ? 'Safari' : navigator.userAgent.match(/Firefox\//) ? 'Firefox' : 'Navigateur');
+            deviceInput.value = auto;
+            localStorage.setItem(DEVICE_NAME_KEY, auto);
+        }
         deviceInput.addEventListener('change', () => { localStorage.setItem(DEVICE_NAME_KEY, deviceInput.value); });
     }
     const startDateInput = document.getElementById('start-date');
