@@ -1,16 +1,16 @@
 // ============================================================
-// ADMIN VÉLOC'ANNECY v4
-// - Boutons +/- pour les quantités
-// - Tailles enfant séparées
-// - Dernière réservation à 10h45
-// - Statuts : aucun (attente), arrived (venu), noshow (pas venu)
+// ADMIN VÉLOC'ANNECY v5 - Types de vélos dynamiques
 // ============================================================
 
 const STORAGE_KEY = 'veloc_reservations';
 const STORAGE_ITEMS_KEY = 'veloc_reservation_items';
 const FLEET_STORAGE_KEY = 'veloc_fleet';
+const BIKE_TYPES_KEY = 'veloc_bike_types';
 const WALKIN_KEY = 'veloc_walkin';
 const DEVICE_NAME_KEY = 'veloc_device_name';
+const PIN_CODE = '3300';
+const UNLOCKED_KEY = 'veloc_admin_unlocked';
+
 function getDeviceType() {
     const ua = navigator.userAgent;
     if (/iPhone/i.test(ua)) return '📱 iPhone';
@@ -22,6 +22,66 @@ function getDeviceType() {
     return '📱 Appareil inconnu';
 }
 
+// ---- GESTION DES TYPES DE VÉLOS ----
+
+let _bikeTypes = [];
+let _fleet = {};
+
+async function loadBikeTypes() {
+    if (useSupabase && window._supabase) {
+        try {
+            const { data, error } = await window._supabase
+                .from('bike_types')
+                .select('*')
+                .order('sort_order', { ascending: true });
+            if (!error && data && data.length) {
+                _bikeTypes = data;
+                localStorage.setItem(BIKE_TYPES_KEY, JSON.stringify(data));
+                return;
+            }
+        } catch (e) { /* fallback */ }
+    }
+    const local = localStorage.getItem(BIKE_TYPES_KEY);
+    if (local) { _bikeTypes = JSON.parse(local); return; }
+    // Fallback par défaut
+    _bikeTypes = [
+        { key: 'vae', label: 'VAE', icon: '⚡', description: '', default_total: 70, sort_order: 1 },
+        { key: 'vtc', label: 'VTC', icon: '🚲', description: '', default_total: 70, sort_order: 2 },
+        { key: 'tandem', label: 'Tandem', icon: '👫', description: '', default_total: 1, sort_order: 3 },
+        { key: 'enfant-16p', label: 'Enfant 16p', icon: '🧒', description: '4 à 6 ans', default_total: 1, sort_order: 4 },
+        { key: 'enfant-20p', label: 'Enfant 20p', icon: '🧒', description: '6 à 8 ans', default_total: 2, sort_order: 5 },
+        { key: 'enfant-24p', label: 'Enfant 24p', icon: '🧒', description: '8 à 10 ans', default_total: 2, sort_order: 6 },
+        { key: 'enfant-26p', label: 'Enfant 26p', icon: '🧒', description: '10 ans et +', default_total: 2, sort_order: 7 },
+        { key: 'siege', label: 'Siège bébé', icon: '🍼', description: '', default_total: 7, sort_order: 8 }
+    ];
+}
+
+function getActiveTypes() {
+    return _bikeTypes.filter(t => t.is_active !== false);
+}
+
+function buildFloteeFromFleet(fleet) {
+    const flotte = {};
+    getActiveTypes().forEach(t => {
+        flotte[t.key] = {
+            label: t.label,
+            icon: t.icon,
+            total: fleet[t.key] !== undefined ? fleet[t.key] : (t.default_total || 0)
+        };
+    });
+    return flotte;
+}
+
+let FLOTTE = {};
+let FLOTTE_TYPES = [];
+
+function rebuildFlotte() {
+    FLOTTE = buildFloteeFromFleet(_fleet);
+    FLOTTE_TYPES = Object.keys(FLOTTE);
+}
+
+// ---- CHARGEMENT FLOTTE ----
+
 function loadFleetLocal() {
     try {
         const data = localStorage.getItem(FLEET_STORAGE_KEY);
@@ -30,70 +90,146 @@ function loadFleetLocal() {
     return null;
 }
 
-const FLOTTE = (() => {
-    const f = loadFleetLocal() || { vae: 20, vtc: 20, tandem: 6, 'enfant-16p': 3, 'enfant-20p': 3, 'enfant-24p': 3, 'enfant-26p': 3, siege: 10 };
-    return {
-        vae:    { label: 'VAE',       icon: '⚡', total: f.vae },
-        vtc:    { label: 'VTC',       icon: '🚲', total: f.vtc },
-        tandem: { label: 'Tandem',    icon: '👫', total: f.tandem },
-        'enfant-16p': { label: 'Enfant 16p', icon: '🧒', total: f['enfant-16p'] },
-        'enfant-20p': { label: 'Enfant 20p', icon: '🧒', total: f['enfant-20p'] },
-        'enfant-24p': { label: 'Enfant 24p', icon: '🧒', total: f['enfant-24p'] },
-        'enfant-26p': { label: 'Enfant 26p', icon: '🧒', total: f['enfant-26p'] },
-        siege:  { label: 'Siège bébé', icon: '🍼', total: f.siege }
-    };
-})();
-const FLOTTE_TYPES = ['vae', 'vtc', 'tandem', 'enfant-16p', 'enfant-20p', 'enfant-24p', 'enfant-26p', 'siege'];
+async function syncFleetFromDB() {
+    let fleet = null;
+    if (useSupabase && window._supabase) {
+        try {
+            const dateStr = currentDateStr || getDateStr(new Date());
+            const { data, error } = await window._supabase
+                .from('fleet_history')
+                .select('totals')
+                .eq('date', dateStr)
+                .maybeSingle();
+            if (!error && data && data.totals) { fleet = data.totals; }
+            if (!fleet) {
+                const { data: last, error: lastErr } = await window._supabase
+                    .from('fleet_history')
+                    .select('totals')
+                    .lte('date', dateStr)
+                    .order('date', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (!lastErr && last && last.totals) fleet = last.totals;
+            }
+        } catch (e) { /* fallback */ }
+    }
+    if (!fleet) fleet = loadFleetLocal();
+    if (!fleet) {
+        fleet = {};
+        getActiveTypes().forEach(t => { fleet[t.key] = t.default_total || 0; });
+    }
+    _fleet = fleet;
+    localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(fleet));
+    rebuildFlotte();
+}
 
-let _fleet = loadFleetLocal() || { vae: 20, vtc: 20, tandem: 6, 'enfant-16p': 3, 'enfant-20p': 3, 'enfant-24p': 3, 'enfant-26p': 3, siege: 10 };
+async function saveFleetToDB(fleet) {
+    _fleet = fleet;
+    localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(fleet));
+    rebuildFlotte();
+    if (useSupabase && window._supabase) {
+        try {
+            const dateStr = currentDateStr || getDateStr(new Date());
+            await window._supabase
+                .from('fleet_history')
+                .upsert({ date: dateStr, totals: fleet, updated_at: new Date().toISOString() }, { onConflict: 'date' });
+        } catch (e) { /* fallback */ }
+    }
+}
 
-function getFleet() { return _fleet; }
+async function updateFleet(fleet) { await saveFleetToDB(fleet); }
 
-async function syncFleetFromDB() { if (useSupabase && window._supabase) { try { const { data, error } = await window._supabase.from('fleet').select('*').eq('id', 1).single(); if (!error && data) { const fleet = { vae: data.vae, vtc: data.vtc, tandem: data.tandem, 'enfant-16p': data['enfant-16p'], 'enfant-20p': data['enfant-20p'], 'enfant-24p': data['enfant-24p'], 'enfant-26p': data['enfant-26p'], siege: data.siege }; _fleet = fleet; for (const [type, total] of Object.entries(fleet)) { if (FLOTTE[type]) FLOTTE[type].total = total; } localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(fleet)); } } catch (e) { /* fallback */ } } }
-async function saveFleetToDB(fleet) { localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(fleet)); if (useSupabase && window._supabase) { try { await window._supabase.from('fleet').upsert({ id: 1, ...fleet, updated_at: new Date().toISOString() }, { onConflict: 'id' }); } catch (e) { /* fallback */ } } }
-async function updateFleet(fleet) { _fleet = fleet; for (const [type, total] of Object.entries(fleet)) { if (FLOTTE[type]) FLOTTE[type].total = total; } await saveFleetToDB(fleet); }
+// ---- RENDU STOCK (dynamique) ----
 
-// ---- FLUX LIBRE (walk-in) ----
+function renderStockBars(stock) {
+    const container = document.getElementById('stock-container');
+    if (!container) return;
+    let html = '';
+    FLOTTE_TYPES.forEach(type => {
+        const cfg = FLOTTE[type];
+        const available = stock ? Math.max(0, cfg.total - (stock[type]?.reserved || 0)) : cfg.total;
+        const pct = cfg.total > 0 ? (available / cfg.total) * 100 : 0;
+        const cls = available <= 0 ? 'critical' : available <= Math.ceil(cfg.total * 0.25) ? 'low' : '';
+        html += `<div class="stock-item ${cls}" id="stock-${type}">
+            <div class="label">${cfg.icon} ${cfg.label}</div>
+            <div class="count"><span class="avail" id="stock-${type}-avail">${available}</span> <span class="total">/ <span id="stock-${type}-total">${cfg.total}</span></span></div>
+            <div class="bar"><div class="bar-fill" id="stock-${type}-bar" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
 
-function getWalkinKey(dateStr) { return WALKIN_KEY + '_' + dateStr; }
-function loadWalkin(dateStr) { try { const data = localStorage.getItem(getWalkinKey(dateStr)); if (data) return JSON.parse(data); } catch {} return { vae: 0, vtc: 0, tandem: 0, 'enfant-16p': 0, 'enfant-20p': 0, 'enfant-24p': 0, 'enfant-26p': 0, siege: 0 }; }
-function saveWalkin(dateStr, walkin) { localStorage.setItem(getWalkinKey(dateStr), JSON.stringify(walkin)); }
+async function renderStock(dateStr) {
+    const stock = await computeStockForDate(dateStr);
+    renderStockBars(stock);
+    updateStockIndicators(stock);
+}
+
+function updateStockIndicators(stock) {
+    document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => {
+        const bikeType = el.dataset.bike;
+        if (!bikeType || !stock?.[bikeType]) return;
+        const cfg = FLOTTE[bikeType];
+        if (!cfg) return;
+        const available = Math.max(0, cfg.total - stock[bikeType].reserved);
+        const indicator = el.querySelector('.stock-indicator');
+        if (indicator) {
+            indicator.textContent = available;
+            indicator.className = 'stock-indicator';
+            if (available <= 0) indicator.classList.add('stock-no');
+            else if (available <= Math.ceil(cfg.total * 0.25)) indicator.classList.add('stock-low');
+            else indicator.classList.add('stock-ok');
+        }
+        const plusBtn = el.querySelector('.qty-plus');
+        const val = parseInt(el.querySelector('.qty-value').value) || 0;
+        if (plusBtn) plusBtn.disabled = val >= available;
+    });
+}
+
+// ---- RENDU FLOTTE STATIC + EDIT ----
+
+function renderFleetStatic() {
+    const el = document.getElementById('fleet-static');
+    if (!el) return;
+    el.textContent = FLOTTE_TYPES.map(t => `${FLOTTE[t].icon} ${FLOTTE[t].label}: ${_fleet[t] || 0}`).join(' · ');
+}
+
+function renderFleetEdit() {
+    const grid = document.getElementById('fleet-edit-grid');
+    if (!grid) return;
+    let html = '';
+    FLOTTE_TYPES.forEach(t => {
+        html += `<div><label style="font-size:0.6rem;font-weight:600;">${FLOTTE[t].icon} ${FLOTTE[t].label}</label><input type="number" id="fleet-${t}-input" value="${_fleet[t] || 0}" min="0" class="fleet-input"></div>`;
+    });
+    grid.innerHTML = html;
+}
+
+// ---- RENDU WALKIN ----
 
 async function renderWalkin(dateStr) {
     const grid = document.getElementById('walkin-grid');
     if (!grid) return;
     const walkin = loadWalkin(dateStr);
     const stock = await computeStockForDate(dateStr);
-    const types = [
-        { key: 'vae', icon: '⚡', label: 'VAE' }, { key: 'vtc', icon: '🚲', label: 'VTC' },
-        { key: 'tandem', icon: '👫', label: 'Tandem' }, { key: 'enfant-16p', icon: '🧒', label: '16p' },
-        { key: 'enfant-20p', icon: '🧒', label: '20p' }, { key: 'enfant-24p', icon: '🧒', label: '24p' },
-        { key: 'enfant-26p', icon: '🧒', label: '26p' }, { key: 'siege', icon: '🍼', label: 'Siège' }
-    ];
     let html = '';
-    types.forEach(t => {
-        const val = walkin[t.key] || 0;
-        const total = FLOTTE[t.key].total || 0;
-        // baseReserved = réservations uniquement (sans le walkin)
-        const baseReserved = stock[t.key].reserved - val;
-        // maxWalkin = maximum qu'on peut donner en walkin (total - réservations)
-        const maxWalkin = Math.max(0, total - baseReserved);
-        // available = ce qu'il reste sur la flotte (total - réservations - walkin)
-        const available = Math.max(0, total - stock[t.key].reserved);
+    FLOTTE_TYPES.forEach(t => {
+        const cfg = FLOTTE[t];
+        const val = walkin[t] || 0;
+        const baseReserved = stock[t].reserved - val;
+        const maxWalkin = Math.max(0, cfg.total - baseReserved);
+        const available = Math.max(0, cfg.total - stock[t].reserved);
         const atMax = val >= maxWalkin;
-        const availClass = available <= 0 ? 'stock-no' : available <= Math.ceil(total * 0.25) ? 'stock-low' : 'stock-ok';
-        html += `
-            <div class="bike-qty-item walkin-item" data-bike="${t.key}">
-                <span class="bike-icon">${t.icon}</span>
-                <span class="bike-name">${t.label}</span>
-                <div class="qty-control">
-                    <button type="button" class="qty-btn walkin-btn" data-date="${dateStr}" data-key="${t.key}" data-dir="-1">−</button>
-                    <input type="text" class="qty-value walkin-val" data-key="${t.key}" value="${val}" readonly>
-                    <button type="button" class="qty-btn walkin-btn" data-date="${dateStr}" data-key="${t.key}" data-dir="1" ${atMax ? 'disabled' : ''}>+</button>
-                </div>
-                <span class="stock-indicator ${availClass} walkin-avail">${available}</span>
+        const availClass = available <= 0 ? 'stock-no' : available <= Math.ceil(cfg.total * 0.25) ? 'stock-low' : 'stock-ok';
+        html += `<div class="bike-qty-item walkin-item" data-bike="${t}">
+            <span class="bike-icon">${cfg.icon}</span>
+            <span class="bike-name">${cfg.label}</span>
+            <div class="qty-control">
+                <button type="button" class="qty-btn walkin-btn" data-date="${dateStr}" data-key="${t}" data-dir="-1">−</button>
+                <input type="text" class="qty-value walkin-val" data-key="${t}" value="${val}" readonly>
+                <button type="button" class="qty-btn walkin-btn" data-date="${dateStr}" data-key="${t}" data-dir="1" ${atMax ? 'disabled' : ''}>+</button>
             </div>
-        `;
+            <span class="stock-indicator ${availClass} walkin-avail">${available}</span>
+        </div>`;
     });
     grid.innerHTML = html;
 }
@@ -110,22 +246,55 @@ function setupWalkin() {
         if (newVal < 0) return;
         walkin[key] = newVal;
         saveWalkin(dateStr, walkin);
-        // Mise à jour directe du DOM
         const item = btn.closest('.walkin-item');
-        // Valeur du compteur
         const valEl = item?.querySelector('.walkin-val');
         if (valEl) valEl.value = newVal;
-        // Refresh complet asynchrone (barres + walkin + formulaire)
         renderDay(dateStr);
     });
     document.getElementById('walkin-reset-btn')?.addEventListener('click', () => {
         if (!confirm('🔄 Réinitialiser le flux libre du jour ?')) return;
-        const walkin = { vae: 0, vtc: 0, tandem: 0, 'enfant-16p': 0, 'enfant-20p': 0, 'enfant-24p': 0, 'enfant-26p': 0, siege: 0 };
+        const walkin = {};
+        FLOTTE_TYPES.forEach(t => walkin[t] = 0);
         saveWalkin(currentDateStr, walkin);
         renderDay(currentDateStr);
         showToast('🔄 Flux libre réinitialisé', 'info');
     });
 }
+
+// ---- FORMULAIRE RÉSERVATION (dynamique) ----
+
+function getBikeDescription(key) {
+    const t = _bikeTypes.find(x => x.key === key);
+    return t?.description || '';
+}
+
+function renderBikeFormItems() {
+    const grid = document.getElementById('bike-qty-grid');
+    if (!grid) return;
+    let html = '';
+    FLOTTE_TYPES.forEach(t => {
+        const cfg = FLOTTE[t];
+        const desc = getBikeDescription(t);
+        html += `<div class="bike-qty-item" data-bike="${t}" title="${escapeHtml(desc)}">
+            <span class="bike-icon">${cfg.icon}</span>
+            <span class="bike-name">${cfg.label}</span>
+            ${desc ? `<span style="font-size:0.55rem;color:var(--text-muted);">${escapeHtml(desc)}</span>` : ''}
+            <div class="qty-control">
+                <button type="button" class="qty-btn qty-minus">−</button>
+                <input type="text" class="qty-value" value="0" readonly>
+                <button type="button" class="qty-btn qty-plus">+</button>
+            </div>
+            <span class="stock-indicator stock-ok">${cfg.total}</span>
+        </div>`;
+    });
+    grid.innerHTML = html;
+}
+
+// ---- FLUX LIBRE ----
+
+function getWalkinKey(dateStr) { return WALKIN_KEY + '_' + dateStr; }
+function loadWalkin(dateStr) { try { const data = localStorage.getItem(getWalkinKey(dateStr)); if (data) return JSON.parse(data); } catch {} const w = {}; FLOTTE_TYPES.forEach(t => w[t] = 0); return w; }
+function saveWalkin(dateStr, walkin) { localStorage.setItem(getWalkinKey(dateStr), JSON.stringify(walkin)); }
 
 let useSupabase = false;
 let currentDateStr = '';
@@ -152,34 +321,13 @@ async function computeStockForDate(dateStr) {
     const reservations = await loadReservations();
     const walkin = loadWalkin(dateStr);
     const stock = {};
-    for (const [type, cfg] of Object.entries(FLOTTE)) stock[type] = { total: cfg.total, reserved: 0 };
+    FLOTTE_TYPES.forEach(t => stock[t] = { total: FLOTTE[t].total, reserved: 0 });
     reservations.forEach(r => { const nr = normalize(r); if (nr.status === 'noshow') return; const resDate = getDateStr(nr.startDate); let affectedDays = [resDate]; if (nr.isLongDuration && nr.durationDays > 1) { for (let i = 0; i < nr.durationDays; i++) affectedDays.push(addDays(resDate, i)); affectedDays = [...new Set(affectedDays)]; } if (affectedDays.includes(dateStr)) { nr.items.forEach(item => { const bt = item.bikeType === 'enfant' && item.bikeSize ? 'enfant-' + item.bikeSize : item.bikeType; if (stock[bt]) stock[bt].reserved += item.quantity; }); } });
     for (const [type, qty] of Object.entries(walkin)) { if (stock[type]) stock[type].reserved += qty; }
     return stock;
 }
 
-async function renderStock(dateStr) {
-    const stock = await computeStockForDate(dateStr);
-    for (const [type, cfg] of Object.entries(FLOTTE)) {
-        const available = Math.max(0, cfg.total - stock[type].reserved);
-        const pct = cfg.total > 0 ? (available / cfg.total) * 100 : 0;
-        const availEl = document.getElementById(`stock-${type}-avail`); const totalEl = document.getElementById(`stock-${type}-total`); const barEl = document.getElementById(`stock-${type}-bar`); const cardEl = document.getElementById(`stock-${type}`);
-        if (availEl) availEl.textContent = available; if (totalEl) totalEl.textContent = cfg.total; if (barEl) barEl.style.width = pct + '%';
-        if (cardEl) { cardEl.classList.remove('critical', 'low'); if (available <= 0) cardEl.classList.add('critical'); else if (available <= Math.ceil(cfg.total * 0.25)) cardEl.classList.add('low'); }
-    }
-    const enfantTypes = ['enfant-16p', 'enfant-20p', 'enfant-24p', 'enfant-26p'];
-    const totalEnfant = enfantTypes.reduce((sum, t) => sum + FLOTTE[t].total, 0); const reservedEnfant = enfantTypes.reduce((sum, t) => sum + (stock[t]?.reserved || 0), 0); const availEnfant = Math.max(0, totalEnfant - reservedEnfant); const pctEnfant = totalEnfant > 0 ? (availEnfant / totalEnfant) * 100 : 0;
-    if (document.getElementById('stock-enfant-avail')) document.getElementById('stock-enfant-avail').textContent = availEnfant; if (document.getElementById('stock-enfant-total')) document.getElementById('stock-enfant-total').textContent = totalEnfant; if (document.getElementById('stock-enfant-bar')) document.getElementById('stock-enfant-bar').style.width = pctEnfant + '%';
-    if (document.getElementById('stock-enfant')) { const el = document.getElementById('stock-enfant'); el.classList.remove('critical', 'low'); if (availEnfant <= 0) el.classList.add('critical'); else if (availEnfant <= Math.ceil(totalEnfant * 0.25)) el.classList.add('low'); }
-    updateStockIndicators(stock);
-}
-
-function updateStockIndicators(stock) { document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => { const bikeType = el.dataset.bike; if (!bikeType || !stock[bikeType]) return; const cfg = FLOTTE[bikeType]; const available = Math.max(0, cfg.total - stock[bikeType].reserved); const indicator = el.querySelector('.stock-indicator'); if (indicator) { indicator.textContent = available; indicator.className = 'stock-indicator'; if (available <= 0) indicator.classList.add('stock-no'); else if (available <= Math.ceil(cfg.total * 0.25)) indicator.classList.add('stock-low'); else indicator.classList.add('stock-ok'); } const plusBtn = el.querySelector('.qty-plus'); const val = parseInt(el.querySelector('.qty-value').value) || 0; if (plusBtn) plusBtn.disabled = val >= available; }); }
-function setupQtyControls() { document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-minus').forEach(btn => { btn.addEventListener('click', () => { const item = btn.closest('.bike-qty-item'); const valEl = item.querySelector('.qty-value'); const badge = item.querySelector('.stock-indicator'); let val = parseInt(valEl.value) || 0; if (val > 0) { val--; valEl.value = val; if (badge) { const cur = parseInt(badge.textContent) || 0; badge.textContent = cur + 1; } } updatePlusButtons(item); }); }); document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-plus').forEach(btn => { btn.addEventListener('click', () => { const item = btn.closest('.bike-qty-item'); const valEl = item.querySelector('.qty-value'); const badge = item.querySelector('.stock-indicator'); const max = parseInt(badge?.textContent) || 0; let val = parseInt(valEl.value) || 0; if (val < max) { val++; valEl.value = val; if (badge) { const cur = parseInt(badge.textContent) || 0; badge.textContent = Math.max(0, cur - 1); } } updatePlusButtons(item); }); }); }
-function updatePlusButtons(item) { const val = parseInt(item.querySelector('.qty-value').value) || 0; const max = parseInt(item.querySelector('.stock-indicator').textContent) || 0; const plusBtn = item.querySelector('.qty-plus'); if (plusBtn) plusBtn.disabled = val >= max; }
-function getQtyValues() { const items = []; document.querySelectorAll('.bike-qty-item').forEach(el => { const bikeType = el.dataset.bike; const qty = parseInt(el.querySelector('.qty-value').value) || 0; if (qty > 0) items.push({ bikeType, quantity: qty, bikeSize: null }); }); return items; }
-function setQtyValues(items) { document.querySelectorAll('.qty-value').forEach(el => el.value = '0'); items.forEach(item => { const el = document.querySelector(`.bike-qty-item[data-bike="${item.bikeType}"]`); if (el) { const valEl = el.querySelector('.qty-value'); if (valEl) valEl.value = item.quantity; updatePlusButtons(el); } }); }
-function validateDate(showError = true) { const startDateInput = document.getElementById('start-date'); if (!startDateInput) return false; const val = startDateInput.value; if (!val) return false; const selected = new Date(val); const tomorrowStart = new Date(); tomorrowStart.setDate(tomorrowStart.getDate() + 1); tomorrowStart.setHours(0, 0, 0, 0); if (selected < tomorrowStart) { if (showError) showToast('❌ La réservation doit être pour demain au minimum', 'error'); const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0); const offset = tomorrow.getTimezoneOffset() * 60000; startDateInput.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 16); return false; } const hours = selected.getHours(); const minutes = selected.getMinutes(); if (hours > 10 || (hours === 10 && minutes > 45)) { if (showError) showToast('⏰ Dernière réservation à 10h45 (valide 15 min)', 'error'); const corrected = new Date(selected); corrected.setHours(10, 45, 0, 0); const offset = corrected.getTimezoneOffset() * 60000; startDateInput.value = new Date(corrected.getTime() - offset).toISOString().slice(0, 16); return false; } return true; }
+// ---- RENDU JOUR ----
 
 async function renderDay(dateStr) {
     if (!dateStr) dateStr = getDateStr(new Date());
@@ -187,8 +335,11 @@ async function renderDay(dateStr) {
     const displayEl = document.getElementById('date-display'); const picker = document.getElementById('date-picker');
     if (displayEl) { const today = getDateStr(new Date()); displayEl.textContent = dateStr === today ? "📅 Aujourd'hui" : '📅 ' + formatDateLongFR(dateStr); }
     if (picker) picker.value = dateStr;
+    await syncFleetFromDB();
     await renderStock(dateStr);
     await renderWalkin(dateStr);
+    renderFleetStatic();
+    renderFleetEdit();
     const titleEl = document.getElementById('reservations-title');
     if (titleEl) { const today = getDateStr(new Date()); titleEl.textContent = dateStr === today ? 'Réservations du jour' : 'Réservations du ' + formatDateLongFR(dateStr); }
     const reservations = await loadReservations();
@@ -206,7 +357,7 @@ async function renderDay(dateStr) {
         const statusClass = r.status === 'arrived' ? 'status-arrived' : r.status === 'noshow' ? 'status-noshow' : '';
         const createdDate = r.createdAt ? new Date(r.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
         const deviceLabel = r.deviceName ? escapeHtml(r.deviceName) : '';
-        html += `<div class="reservation-card ${statusClass}" id="res-card-${r.id}"><div class="time">${formatTime(r.startDate)}</div><div class="card-top"><div class="client-info"><span class="name">${escapeHtml(r.clientName)}</span><span class="phone">${escapeHtml(r.clientPhone)}</span></div><div class="meta-info">${createdDate ? `<span>📅 ${createdDate}</span>` : ''}${deviceLabel ? `<span>📱 ${deviceLabel}</span>` : ''}</div></div><div class="items-summary">${itemsHtml}</div><div class="action-btns"><button class="btn btn-success" onclick="handleArrived('${r.id}')" title="Venue confirmée">✅ Venu</button><button class="btn btn-warning" onclick="handleNoshow('${r.id}')" title="Pas venu">❌ Pas venu</button></div><button class="menu-btn" onclick="toggleMenu('${r.id}')" title="Plus d'actions">⋮</button><div class="context-menu" id="menu-${r.id}"><button onclick="handleEdit('${r.id}')">✏️ Modifier</button><button class="menu-danger" onclick="handleDelete('${r.id}')">🗑️ Supprimer</button></div></div>`;
+        html += `<div class="reservation-card ${statusClass}" id="res-card-${r.id}"><div class="time">${formatTime(r.startDate)}</div><div class="card-top"><div class="client-info"><span class="name">${escapeHtml(r.clientName)}</span><span class="phone">${escapeHtml(r.clientPhone)}</span></div><div class="meta-info">${createdDate ? `<span>📅 ${createdDate}</span>` : ''}${deviceLabel ? `<span>${deviceLabel}</span>` : ''}</div></div><div class="items-summary">${itemsHtml}</div><div class="action-btns"><button class="btn btn-success" onclick="handleArrived('${r.id}')" title="Venue confirmée">✅ Venu</button><button class="btn btn-warning" onclick="handleNoshow('${r.id}')" title="Pas venu">❌ Pas venu</button></div><button class="menu-btn" onclick="toggleMenu('${r.id}')" title="Plus d'actions">⋮</button><div class="context-menu" id="menu-${r.id}"><button onclick="handleEdit('${r.id}')">✏️ Modifier</button><button class="menu-danger" onclick="handleDelete('${r.id}')">🗑️ Supprimer</button></div></div>`;
     });
     listEl.innerHTML = html;
 }
@@ -217,14 +368,15 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.menu-btn') &
 async function handleArrived(id) { const reservations = await loadReservations(); const r = reservations.map(normalize).find(x => x.id === id); if (!r) return; const newStatus = r.status === 'arrived' ? null : 'arrived'; await updateReservationStatus(id, newStatus); await renderDay(currentDateStr); showToast(newStatus === 'arrived' ? '✅ Venue confirmée' : 'Remis en attente', 'success'); }
 async function handleNoshow(id) { const reservations = await loadReservations(); const r = reservations.map(normalize).find(x => x.id === id); if (!r) return; await updateReservationStatus(id, 'noshow'); await renderDay(currentDateStr); showToast('❌ Marqué pas venu', 'info'); }
 async function handleDelete(id) { if (!confirm('🗑️ Supprimer cette réservation ?')) return; await deleteReservation(id); await renderDay(currentDateStr); showToast('Supprimé', 'info'); }
-async function handleEdit(id) { const reservations = await loadReservations(); const r = reservations.map(normalize).find(x => x.id === id); if (!r) return; document.getElementById('edit-id').value = id; document.getElementById('client-name').value = r.clientName; document.getElementById('client-phone').value = r.clientPhone; const d = new Date(r.startDate); const offset = d.getTimezoneOffset() * 60000; document.getElementById('start-date').value = new Date(d.getTime() - offset).toISOString().slice(0, 16); setQtyValues(r.items); if (r.isLongDuration) { document.getElementById('long-duration').checked = true; document.getElementById('duration-input').classList.add('show'); document.getElementById('duration-days').value = r.durationDays; updateEndDate(); } else { document.getElementById('long-duration').checked = false; document.getElementById('duration-input').classList.remove('show'); } document.getElementById('notes').value = r.notes || ''; document.getElementById('form-title').textContent = '✏️ Modifier la réservation'; document.getElementById('submit-btn').textContent = '💾 Enregistrer les modifications'; document.getElementById('cancel-edit-btn').style.display = 'block'; showToast('✏️ Mode édition', 'info'); }
-function cancelEdit() { document.getElementById('edit-id').value = ''; document.getElementById('form-title').textContent = '➕ Nouvelle réservation'; document.getElementById('submit-btn').textContent = '✅ Enregistrer'; document.getElementById('cancel-edit-btn').style.display = 'none'; document.getElementById('reservation-form').reset(); setQtyValues([]); document.getElementById('long-duration').checked = false; document.getElementById('duration-input').classList.remove('show'); const startDateInput = document.getElementById('start-date'); if (startDateInput) { const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0); const offset = tomorrow.getTimezoneOffset() * 60000; startDateInput.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 16); } refreshFormBadges(); }
+async function handleEdit(id) { const reservations = await loadReservations(); const r = reservations.map(normalize).find(x => x.id === id); if (!r) return; document.getElementById('edit-id').value = id; document.getElementById('client-name').value = r.clientName; document.getElementById('client-phone').value = r.clientPhone; const d = new Date(r.startDate); const offset = d.getTimezoneOffset() * 60000; document.getElementById('start-date').value = new Date(d.getTime() - offset).toISOString().slice(0, 16); const today = new Date(); const todayOffset = today.getTimezoneOffset() * 60000; document.getElementById('start-date').min = new Date(today.getTime() - todayOffset).toISOString().slice(0, 10) + 'T08:00'; setQtyValues(r.items); if (r.isLongDuration) { document.getElementById('long-duration').checked = true; document.getElementById('duration-input').classList.add('show'); document.getElementById('duration-days').value = r.durationDays; updateEndDate(); } else { document.getElementById('long-duration').checked = false; document.getElementById('duration-input').classList.remove('show'); } document.getElementById('notes').value = r.notes || ''; document.getElementById('form-title').textContent = '✏️ Modifier la réservation'; document.getElementById('submit-btn').textContent = '💾 Enregistrer les modifications'; document.getElementById('cancel-edit-btn').style.display = 'block'; showToast('✏️ Mode édition', 'info'); }
+function cancelEdit() { document.getElementById('edit-id').value = ''; document.getElementById('form-title').textContent = '➕ Nouvelle réservation'; document.getElementById('submit-btn').textContent = '✅ Enregistrer'; document.getElementById('cancel-edit-btn').style.display = 'none'; document.getElementById('reservation-form').reset(); setQtyValues([]); document.getElementById('long-duration').checked = false; document.getElementById('duration-input').classList.remove('show'); const startDateInput = document.getElementById('start-date'); if (startDateInput) { const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0); const offset = tomorrow.getTimezoneOffset() * 60000; startDateInput.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 16); startDateInput.min = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 10) + 'T09:00'; } refreshFormBadges(); }
 async function refreshFormBadges() {
     const stock = await computeStockForDate(currentDateStr || getDateStr(new Date()));
     document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => {
         const bikeType = el.dataset.bike;
-        if (!bikeType || !stock[bikeType]) return;
+        if (!bikeType || !stock?.[bikeType]) return;
         const cfg = FLOTTE[bikeType];
+        if (!cfg) return;
         const available = Math.max(0, cfg.total - stock[bikeType].reserved);
         const indicator = el.querySelector('.stock-indicator');
         if (indicator) {
@@ -236,26 +388,201 @@ async function refreshFormBadges() {
         }
     });
 }
-async function exportCSV() { const reservations = await loadReservations(); if (!reservations || reservations.length === 0) { showToast('Aucune donnée à exporter', 'error'); return; } const all = reservations.map(normalize); let csv = 'Client,Téléphone,Date,Heure,Vélos,Durée jours,Longue durée,Statut,Notes,Créé le\n'; all.forEach(r => { const date = new Date(r.startDate); const dateStr = date.toLocaleDateString('fr-FR'); const timeStr = formatTime(r.startDate); const itemsDesc = r.items.map(i => { const cfg = FLOTTE[i.bikeType] || { label: i.bikeType }; return (i.bikeSize ? i.bikeSize + ' ' : '') + cfg.label + ' ×' + i.quantity; }).join(' + '); const created = r.createdAt ? new Date(r.createdAt).toLocaleString('fr-FR') : ''; const statusLabel = r.status === 'arrived' ? 'Venu' : r.status === 'noshow' ? 'Pas venu' : 'En attente'; csv += `"${r.clientName}","${r.clientPhone}",${dateStr},${timeStr},"${itemsDesc}",${r.durationDays || 1},${r.isLongDuration ? 'Oui' : 'Non'},${statusLabel},"${(r.notes||'').replace(/"/g,'""')}",${created}\n`; }); const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `reservations_veloc_${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href); showToast('📥 CSV téléchargé', 'success'); }
+async function exportCSV() { const reservations = await loadReservations(); if (!reservations || reservations.length === 0) { showToast('Aucune donnée à exporter', 'error'); return; } const all = reservations.map(normalize); let csv = 'Client,Téléphone,Date,Heure,Vélos,Durée jours,Longue durée,Statut,Notes,Créé le\n'; all.forEach(r => { const date = new Date(r.startDate); const dateStr = date.toLocaleDateString('fr-FR'); const timeStr = formatTime(r.startDate); const itemsDesc = r.items.map(i => { const cfg = FLOTTE[i.bikeType] || { label: i.bikeType }; return cfg.label + ' ×' + i.quantity; }).join(' + '); const created = r.createdAt ? new Date(r.createdAt).toLocaleString('fr-FR') : ''; const statusLabel = r.status === 'arrived' ? 'Venu' : r.status === 'noshow' ? 'Pas venu' : 'En attente'; csv += `"${r.clientName}","${r.clientPhone}",${dateStr},${timeStr},"${itemsDesc}",${r.durationDays || 1},${r.isLongDuration ? 'Oui' : 'Non'},${statusLabel},"${(r.notes||'').replace(/"/g,'""')}",${created}\n`; }); const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `reservations_veloc_${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href); showToast('📥 CSV téléchargé', 'success'); }
 function setupDateNav() { const todayBtn = document.getElementById('today-btn'); const prevBtn = document.getElementById('prev-day'); const nextBtn = document.getElementById('next-day'); const picker = document.getElementById('date-picker'); if (todayBtn) todayBtn.addEventListener('click', () => renderDay(getDateStr(new Date()))); if (prevBtn) prevBtn.addEventListener('click', () => { const d = new Date(currentDateStr + 'T12:00:00'); d.setDate(d.getDate() - 1); renderDay(getDateStr(d)); }); if (nextBtn) nextBtn.addEventListener('click', () => { const d = new Date(currentDateStr + 'T12:00:00'); d.setDate(d.getDate() + 1); renderDay(getDateStr(d)); }); if (picker) picker.addEventListener('change', () => { if (picker.value) renderDay(picker.value); }); }
 function updateEndDate() { const startDateInput = document.getElementById('start-date'); const durDays = document.getElementById('duration-days'); const endDateDisplay = document.getElementById('end-date-display'); if (!startDateInput || !durDays || !endDateDisplay) return; const startVal = startDateInput.value; if (startVal && durDays.value) { const d = new Date(startVal); const days = parseInt(durDays.value) || 2; d.setDate(d.getDate() + days); const offset = d.getTimezoneOffset() * 60000; endDateDisplay.value = new Date(d.getTime() - offset).toISOString().slice(0, 10); } }
 
-const _fleetInputs = [{ id: 'fleet-vae-input', key: 'vae' }, { id: 'fleet-vtc-input', key: 'vtc' }, { id: 'fleet-tandem-input', key: 'tandem' }, { id: 'fleet-enfant-16p-input', key: 'enfant-16p' }, { id: 'fleet-enfant-20p-input', key: 'enfant-20p' }, { id: 'fleet-enfant-24p-input', key: 'enfant-24p' }, { id: 'fleet-enfant-26p-input', key: 'enfant-26p' }, { id: 'fleet-siege-input', key: 'siege' }];
-function refreshFleetDisplay() { const f = getFleet(); const enfantTotal = (f['enfant-16p'] || 0) + (f['enfant-20p'] || 0) + (f['enfant-24p'] || 0) + (f['enfant-26p'] || 0); if (document.getElementById('fleet-vae')) document.getElementById('fleet-vae').textContent = f.vae || 0; if (document.getElementById('fleet-vtc')) document.getElementById('fleet-vtc').textContent = f.vtc || 0; if (document.getElementById('fleet-tandem')) document.getElementById('fleet-tandem').textContent = f.tandem || 0; if (document.getElementById('fleet-enfant')) document.getElementById('fleet-enfant').textContent = enfantTotal; if (document.getElementById('fleet-siege')) document.getElementById('fleet-siege').textContent = f.siege || 0; _fleetInputs.forEach(({ id, key }) => { const el = document.getElementById(id); if (el) el.value = f[key] || 0; }); }
+// ---- QTY CONTROLS (formulaire) ----
+
+function setupQtyControls() {
+    document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-minus').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = btn.closest('.bike-qty-item');
+            const valEl = item.querySelector('.qty-value');
+            const badge = item.querySelector('.stock-indicator');
+            let val = parseInt(valEl.value) || 0;
+            if (val > 0) { val--; valEl.value = val; if (badge) { const cur = parseInt(badge.textContent) || 0; badge.textContent = cur + 1; } }
+            updatePlusButtons(item);
+        });
+    });
+    document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-plus').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = btn.closest('.bike-qty-item');
+            const valEl = item.querySelector('.qty-value');
+            const badge = item.querySelector('.stock-indicator');
+            const max = parseInt(badge?.textContent) || 0;
+            let val = parseInt(valEl.value) || 0;
+            if (val < max) { val++; valEl.value = val; if (badge) { const cur = parseInt(badge.textContent) || 0; badge.textContent = Math.max(0, cur - 1); } }
+            updatePlusButtons(item);
+        });
+    });
+}
+function updatePlusButtons(item) { const val = parseInt(item.querySelector('.qty-value').value) || 0; const max = parseInt(item.querySelector('.stock-indicator').textContent) || 0; const plusBtn = item.querySelector('.qty-plus'); if (plusBtn) plusBtn.disabled = val >= max; }
+function getQtyValues() { const items = []; document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => { const bikeType = el.dataset.bike; const qty = parseInt(el.querySelector('.qty-value').value) || 0; if (qty > 0) items.push({ bikeType, quantity: qty, bikeSize: null }); }); return items; }
+function setQtyValues(items) { document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-value').forEach(el => el.value = '0'); items.forEach(item => { const el = document.querySelector(`.bike-qty-item:not(.walkin-item)[data-bike="${item.bikeType}"]`); if (el) { const valEl = el.querySelector('.qty-value'); if (valEl) valEl.value = item.quantity; updatePlusButtons(el); } }); }
+function validateDate(showError = true, allowToday = false) { const startDateInput = document.getElementById('start-date'); if (!startDateInput) return false; const val = startDateInput.value; if (!val) return false; const selected = new Date(val); const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0); if (allowToday) { if (selected < todayStart) { if (showError) showToast('❌ La date ne peut pas être dans le passé', 'error'); const now = new Date(); const offset = now.getTimezoneOffset() * 60000; startDateInput.value = new Date(now.getTime() - offset).toISOString().slice(0, 16); return false; } } else { const tomorrowStart = new Date(); tomorrowStart.setDate(tomorrowStart.getDate() + 1); tomorrowStart.setHours(0, 0, 0, 0); if (selected < tomorrowStart) { if (showError) showToast('❌ La réservation doit être pour demain au minimum', 'error'); const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0); const offset = tomorrow.getTimezoneOffset() * 60000; startDateInput.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 16); return false; } } const hours = selected.getHours(); const minutes = selected.getMinutes(); if (hours < 8) { if (showError) showToast('⏰ Ouverture à 8h minimum', 'error'); const corrected = new Date(selected); corrected.setHours(8, 0, 0, 0); const offset = corrected.getTimezoneOffset() * 60000; startDateInput.value = new Date(corrected.getTime() - offset).toISOString().slice(0, 16); return false; } if (hours > 10 || (hours === 10 && minutes > 45)) { if (showError) showToast('⏰ Dernière réservation à 10h45 (valide 15 min)', 'error'); const corrected = new Date(selected); corrected.setHours(10, 45, 0, 0); const offset = corrected.getTimezoneOffset() * 60000; startDateInput.value = new Date(corrected.getTime() - offset).toISOString().slice(0, 16); return false; } return true; }
+
+// ---- GESTION TYPES DE VÉLOS (CRUD) ----
+
+function renderBikeTypesList() {
+    const list = document.getElementById('bike-types-list');
+    if (!list) return;
+    let html = '';
+    _bikeTypes.forEach(t => {
+        html += `<div class="bike-type-row" data-key="${t.key}">
+            <span class="bt-icon">${t.icon || '🚲'}</span>
+            <span class="bt-label">${escapeHtml(t.label)}</span>
+            <span class="bt-key">${t.key}</span>
+            <span class="bt-default">${t.default_total || 0}</span>
+            <button class="btn btn-outline btn-sm" onclick="openBikeTypeEdit('${t.key}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBikeType('${t.key}')">🗑️</button>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openBikeTypeEdit(key) {
+    const t = _bikeTypes.find(x => x.key === key);
+    if (!t) return;
+    document.getElementById('bike-type-edit-original-key').value = t.key;
+    document.getElementById('bike-type-edit-key').value = t.key;
+    document.getElementById('bike-type-edit-label').value = t.label;
+    document.getElementById('bike-type-edit-icon').value = t.icon || '🚲';
+    document.getElementById('bike-type-edit-description').value = t.description || '';
+    document.getElementById('bike-type-edit-default').value = t.default_total || 0;
+    document.getElementById('bike-type-edit-title').textContent = '✏️ ' + t.label;
+    document.getElementById('bike-type-edit-delete').style.display = 'inline-flex';
+    document.getElementById('bike-type-edit-modal').classList.add('open');
+}
+
+function deleteBikeType(key) {
+    if (!confirm(`🗑️ Supprimer le type "${key}" ? Les réservations existantes avec ce type seront conservées.`)) return;
+    _bikeTypes = _bikeTypes.filter(t => t.key !== key);
+    saveBikeTypesToDB();
+    renderBikeTypesList();
+    refreshAll();
+}
+
+async function saveBikeTypesToDB() {
+    localStorage.setItem(BIKE_TYPES_KEY, JSON.stringify(_bikeTypes));
+    if (useSupabase && window._supabase) {
+        try {
+            // Supprimer tous les types puis réinsérer
+            await window._supabase.from('bike_types').delete().neq('key', '_');
+            for (const t of _bikeTypes) {
+                await window._supabase.from('bike_types').insert([{
+                    key: t.key, label: t.label, icon: t.icon || '🚲',
+                    description: t.description || '', default_total: t.default_total || 0, sort_order: t.sort_order || 0,
+                    is_active: t.is_active !== false
+                }]);
+            }
+        } catch (e) { /* fallback */ }
+    }
+}
+
+function refreshAll() {
+    rebuildFlotte();
+    renderBikeFormItems();
+    setupQtyControls();
+    renderDay(currentDateStr || getDateStr(new Date()));
+}
+
+function setupBikeTypeManager() {
+    const modal = document.getElementById('bike-types-modal');
+    const editModal = document.getElementById('bike-type-edit-modal');
+    document.getElementById('manage-bike-types-btn')?.addEventListener('click', () => {
+        renderBikeTypesList();
+        modal.classList.add('open');
+    });
+    document.getElementById('bike-types-modal-close')?.addEventListener('click', () => modal.classList.remove('open'));
+    document.getElementById('bike-types-done-btn')?.addEventListener('click', () => modal.classList.remove('open'));
+    modal?.addEventListener('click', (e) => { if (e.target === e.currentTarget) modal.classList.remove('open'); });
+    editModal?.addEventListener('click', (e) => { if (e.target === e.currentTarget) editModal.classList.remove('open'); });
+    document.getElementById('bike-type-edit-close')?.addEventListener('click', () => editModal.classList.remove('open'));
+    document.getElementById('bike-type-edit-cancel')?.addEventListener('click', () => editModal.classList.remove('open'));
+
+    document.getElementById('add-bike-type-btn')?.addEventListener('click', () => {
+        document.getElementById('bike-type-edit-original-key').value = '';
+        document.getElementById('bike-type-edit-key').value = '';
+        document.getElementById('bike-type-edit-label').value = '';
+        document.getElementById('bike-type-edit-icon').value = '🚲';
+        document.getElementById('bike-type-edit-default').value = '0';
+        document.getElementById('bike-type-edit-title').textContent = '➕ Nouveau type de vélo';
+        document.getElementById('bike-type-edit-delete').style.display = 'none';
+        editModal.classList.add('open');
+    });
+
+    document.getElementById('bike-type-edit-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const origKey = document.getElementById('bike-type-edit-original-key').value;
+        const newKey = document.getElementById('bike-type-edit-key').value.trim();
+        const label = document.getElementById('bike-type-edit-label').value.trim();
+        const icon = document.getElementById('bike-type-edit-icon').value.trim() || '🚲';
+        const desc = document.getElementById('bike-type-edit-description').value.trim() || '';
+        const def = parseInt(document.getElementById('bike-type-edit-default').value) || 0;
+        if (!newKey || !label) { showToast('Remplissez tous les champs', 'error'); return; }
+        if (origKey && origKey !== newKey) {
+            // Changement de clé : supprimer l'ancienne, ajouter la nouvelle
+            _bikeTypes = _bikeTypes.filter(t => t.key !== origKey);
+        }
+        const existing = _bikeTypes.find(t => t.key === newKey);
+        if (existing && existing.key !== origKey) {
+            showToast('❌ Cette clé existe déjà', 'error');
+            return;
+        }
+        if (origKey === '') {
+            _bikeTypes.push({ key: newKey, label, icon, description: desc, default_total: def, sort_order: _bikeTypes.length + 1 });
+        } else {
+            const t = _bikeTypes.find(x => x.key === newKey);
+            if (t) { t.label = label; t.icon = icon; t.description = desc; t.default_total = def; }
+        }
+        await saveBikeTypesToDB();
+        editModal.classList.remove('open');
+        renderBikeTypesList();
+        refreshAll();
+        showToast('✅ Type sauvegardé', 'success');
+    });
+
+    document.getElementById('bike-type-edit-delete')?.addEventListener('click', () => {
+        const key = document.getElementById('bike-type-edit-original-key').value;
+        editModal.classList.remove('open');
+        deleteBikeType(key);
+    });
+}
+
+// ---- REALTIME ----
 
 let _realtimeSubscription = null;
-function setupRealtime() { if (!useSupabase || !window._supabase) return; if (_realtimeSubscription) window._supabase.removeChannel(_realtimeSubscription); _realtimeSubscription = window._supabase.channel('reservations-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => { renderDay(currentDateStr); }).on('postgres_changes', { event: '*', schema: 'public', table: 'reservation_items' }, () => { renderDay(currentDateStr); }).on('postgres_changes', { event: '*', schema: 'public', table: 'fleet' }, async () => { await syncFleetFromDB(); refreshFleetDisplay(); renderDay(currentDateStr); }).subscribe(); }
+function setupRealtime() {
+    if (!useSupabase || !window._supabase) return;
+    if (_realtimeSubscription) window._supabase.removeChannel(_realtimeSubscription);
+    _realtimeSubscription = window._supabase.channel('reservations-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => { renderDay(currentDateStr); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservation_items' }, () => { renderDay(currentDateStr); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fleet_history' }, async () => { await syncFleetFromDB(); renderDay(currentDateStr); })
+        .subscribe();
+}
+
+// ---- INIT ----
 
 async function init() {
-    initSupabase(); if (window._supabase) { const ready = await isSupabaseReady(); if (ready) { useSupabase = true; setDbStatus(true); setupRealtime(); } else setDbStatus(false); } else setDbStatus(false);
-    setupDateNav(); setupQtyControls(); setupWalkin(); await syncFleetFromDB();
-    // Détection auto de l'appareil + sauvegarde localStorage
+    await loadBikeTypes();
+    initSupabase();
+    if (window._supabase) {
+        const ready = await isSupabaseReady();
+        if (ready) { useSupabase = true; setDbStatus(true); setupRealtime(); } else setDbStatus(false);
+    } else setDbStatus(false);
+    await syncFleetFromDB();
+    renderBikeFormItems();
+    setupDateNav();
+    setupQtyControls();
+    setupWalkin();
+    setupBikeTypeManager();
     const deviceInput = document.getElementById('device-name-input');
     if (deviceInput) {
         const saved = localStorage.getItem(DEVICE_NAME_KEY);
-        if (saved) {
-            deviceInput.value = saved;
-        } else {
+        if (saved) deviceInput.value = saved;
+        else {
             const auto = getDeviceType() + ' - ' + (navigator.userAgent.match(/Chrome\/(\S+)/)?.[1] ? 'Chrome' : navigator.userAgent.match(/Safari\//) ? 'Safari' : navigator.userAgent.match(/Firefox\//) ? 'Firefox' : 'Navigateur');
             deviceInput.value = auto;
             localStorage.setItem(DEVICE_NAME_KEY, auto);
@@ -264,7 +591,7 @@ async function init() {
     }
     const startDateInput = document.getElementById('start-date');
     if (startDateInput) { const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(9, 0, 0, 0); const offset = tomorrow.getTimezoneOffset() * 60000; startDateInput.value = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 16); startDateInput.min = new Date(tomorrow.getTime() - offset).toISOString().slice(0, 10) + 'T08:00'; }
-    if (startDateInput) startDateInput.addEventListener('change', () => { validateDate(true); const d = new Date(startDateInput.value); renderStock(getDateStr(d)); });
+    if (startDateInput) startDateInput.addEventListener('change', () => { const isEditing = !!document.getElementById('edit-id').value; validateDate(true, isEditing); const d = new Date(startDateInput.value); renderStock(getDateStr(d)); });
     const longDurCheck = document.getElementById('long-duration'); const durInput = document.getElementById('duration-input'); const durDays = document.getElementById('duration-days');
     if (longDurCheck && durInput) longDurCheck.addEventListener('change', () => { durInput.classList.toggle('show', longDurCheck.checked); updateEndDate(); });
     if (durDays) durDays.addEventListener('input', updateEndDate); if (startDateInput) startDateInput.addEventListener('change', updateEndDate);
@@ -277,8 +604,8 @@ async function init() {
     const form = document.getElementById('reservation-form');
     if (form) {
         form.addEventListener('submit', async (e) => {
-            e.preventDefault(); if (!validateDate(true)) return;
-            const editId = document.getElementById('edit-id').value || null; const name = document.getElementById('client-name').value.trim(); const phone = document.getElementById('client-phone').value.trim(); const startDate = startDateInput.value;
+            e.preventDefault(); const editId = document.getElementById('edit-id').value || null; const isEditing = !!editId; if (!validateDate(true, isEditing)) return;
+            const name = document.getElementById('client-name').value.trim(); const phone = document.getElementById('client-phone').value.trim(); const startDate = startDateInput.value;
             const isLongDuration = longDurCheck ? longDurCheck.checked : false; const durationDays = isLongDuration ? (parseInt(durDays?.value) || 2) : 1; const notes = document.getElementById('notes').value.trim();
             if (!name || !phone || !startDate) { showToast('Remplissez tous les champs', 'error'); return; }
             const items = getQtyValues(); if (items.length === 0) { showToast('Sélectionnez au moins un vélo', 'error'); return; }
@@ -292,13 +619,51 @@ async function init() {
             await renderDay(currentDateStr);
         });
     }
-    document.getElementById('toggle-fleet-edit')?.addEventListener('click', () => { const editDiv = document.getElementById('fleet-edit'); const isHidden = editDiv.style.display === 'none' || !editDiv.style.display; editDiv.style.display = isHidden ? 'block' : 'none'; if (isHidden) refreshFleetDisplay(); });
+    document.getElementById('toggle-fleet-edit')?.addEventListener('click', () => { const editDiv = document.getElementById('fleet-edit'); const isHidden = editDiv.style.display === 'none' || !editDiv.style.display; editDiv.style.display = isHidden ? 'block' : 'none'; if (isHidden) renderFleetEdit(); });
     document.getElementById('fleet-cancel-btn')?.addEventListener('click', () => { document.getElementById('fleet-edit').style.display = 'none'; });
-    document.getElementById('fleet-save-btn')?.addEventListener('click', () => { const newFleet = {}; _fleetInputs.forEach(({ id, key }) => { const el = document.getElementById(id); newFleet[key] = parseInt(el?.value) || 0; }); updateFleet(newFleet); refreshFleetDisplay(); document.getElementById('fleet-edit').style.display = 'none'; showToast('✅ Flotte mise à jour', 'success'); renderDay(currentDateStr); });
-    refreshFleetDisplay();
+    document.getElementById('fleet-save-btn')?.addEventListener('click', async () => {
+        const newFleet = {};
+        FLOTTE_TYPES.forEach(t => {
+            const el = document.getElementById(`fleet-${t}-input`);
+            newFleet[t] = parseInt(el?.value) || 0;
+        });
+        await updateFleet(newFleet);
+        renderFleetStatic();
+        document.getElementById('fleet-edit').style.display = 'none';
+        showToast('✅ Flotte sauvegardée dans l\'historique', 'success');
+        renderDay(currentDateStr);
+    });
+    renderFleetStatic();
     document.getElementById('refresh-btn')?.addEventListener('click', async () => { await renderDay(currentDateStr); showToast('🔄 Actualisé', 'success'); });
     document.getElementById('export-btn')?.addEventListener('click', exportCSV);
-    document.getElementById('clear-all-btn')?.addEventListener('click', clearAllReservations);
     await renderDay(getDateStr(new Date()));
 }
-document.addEventListener('DOMContentLoaded', init);
+
+// ---- PIN SCREEN ----
+
+function setupPinScreen() {
+    const overlay = document.getElementById('pin-overlay');
+    if (!overlay) { init(); return; }
+    if (localStorage.getItem(UNLOCKED_KEY) === '1') { overlay.classList.add('hidden'); init(); return; }
+    const dots = overlay.querySelectorAll('.dot');
+    const errorEl = document.getElementById('pin-error');
+    const delBtn = document.getElementById('pin-delete');
+    let pin = '';
+    function updateDots(w) { dots.forEach((d, i) => { d.classList.remove('filled', 'wrong'); if (i < pin.length) d.classList.add('filled'); if (w) d.classList.add('wrong'); }); }
+    function clearError() { if (errorEl) errorEl.textContent = ''; }
+    overlay.addEventListener('click', (e) => {
+        const num = e.target.dataset?.num;
+        if (num !== undefined) {
+            clearError();
+            if (pin.length >= 4) return;
+            pin += num;
+            updateDots(false);
+            if (pin.length === 4) {
+                if (pin === PIN_CODE) { localStorage.setItem(UNLOCKED_KEY, '1'); overlay.classList.add('hidden'); init(); }
+                else { if (errorEl) errorEl.textContent = '❌ Code incorrect'; updateDots(true); setTimeout(() => { pin = ''; updateDots(false); }, 600); }
+            }
+        }
+        if (e.target === delBtn || e.target.closest('#pin-delete')) { clearError(); pin = pin.slice(0, -1); updateDots(false); }
+    });
+}
+document.addEventListener('DOMContentLoaded', setupPinScreen);
