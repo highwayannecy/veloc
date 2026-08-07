@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Réservations — Véloc</title>
     <link rel="icon" href="assets/logo_veloc.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -86,7 +87,7 @@
 
         .summary-cards {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             margin-bottom: 24px;
         }
@@ -285,6 +286,64 @@
             transform: scale(0.98);
         }
 
+        .cancel-btn {
+            background: #e2e8f0;
+            color: #475569;
+            box-shadow: none;
+            margin-top: 8px;
+        }
+
+        .edit-stock-btn {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .edit-stock-btn:active {
+            transform: scale(0.98);
+            background: #e2e8f0;
+        }
+
+        .stock-field-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .stock-field-row:last-child {
+            border-bottom: none;
+        }
+
+        .stock-field-label {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .stock-field-input {
+            width: 80px;
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 800;
+            text-align: center;
+            color: #0f172a;
+            background: #f8fafc;
+        }
+
+        .stock-field-input:focus {
+            outline: none;
+            border-color: #0052cc;
+            background: #eff6ff;
+        }
+
         .hidden {
             display: none;
         }
@@ -312,11 +371,6 @@
             <div class="value" id="cardTotalValue">–</div>
             <div class="sub" id="cardTotalSub"></div>
         </div>
-        <div class="summary-card green" id="cardEnfants">
-            <div class="label">Enfants</div>
-            <div class="value" id="cardEnfantsValue">–</div>
-            <div class="sub" id="cardEnfantsSub"></div>
-        </div>
         <div class="summary-card" id="cardVelos">
             <div class="label">Vélos</div>
             <div class="value" id="cardVelosValue">–</div>
@@ -329,8 +383,20 @@
         <div class="panel-title">
             Détail
             <span class="count-badge" id="detailBadge">0</span>
+            <button class="edit-stock-btn" onclick="openStockEditor()">✏️ Stock</button>
         </div>
         <div id="categories"></div>
+    </div>
+
+    <!-- Éditeur de stock (masqué par défaut) -->
+    <div class="panel hidden" id="stockEditor">
+        <div class="panel-title">
+            Modifier le stock
+            <span class="count-badge" id="stockDateBadge">–</span>
+        </div>
+        <div id="stockEditorFields"></div>
+        <button class="refresh-btn" onclick="saveStock()">💾 Enregistrer</button>
+        <button class="refresh-btn cancel-btn" onclick="closeStockEditor()">Annuler</button>
     </div>
 
     <!-- Liste des réservations -->
@@ -423,7 +489,7 @@
          * Calendrier de Richard (lien connu).
          * URL complète : webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8v...
          */
-        const RICHARD_CALENDAR = 'webcal://p159-caldav.icloud.com/published/2/MTc2MTAyNDc5NzkxNzYxMAyt8rk1jJj38gOQqw5ho0PItzdREK7h1KRPTBZxGNjzpqF56d_BKZFJ01z7pXMp6UE64q9baSUwSnPF7L-POFg';
+        const RICHARD_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
 
 
         /**
@@ -472,6 +538,165 @@
             return '';
         }
 
+        // ============ SUPABASE / STOCK (fleet_history) ============
+        // Configuration identique à supabase.js
+        const SUPABASE_CONFIG = {
+            url: 'https://kltvxgupcfscdzjorxtu.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdHZ4Z3VwY2ZzY2R6am9yeHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDEyNDEsImV4cCI6MjA5OTc3NzI0MX0.V4VT_xHbquzA-IeL3YOFEJYVrrcnaV9QmI-dRSiFHb8'
+        };
+
+        let _supabase = null;
+        let fleetTotals = {};
+        let fleetDate = null;
+
+        function initResaSupabase() {
+            if (window.supabase && !_supabase) {
+                try {
+                    _supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+                    console.log('✅ Supabase connecté (resa.html)');
+                } catch (e) {
+                    console.error('❌ Erreur Supabase:', e);
+                }
+            }
+        }
+
+        /**
+         * Mappage clé de comptage → clé du JSONB fleet_history
+         */
+        function stockKeyMap(key) {
+            const map = {
+                vtc: 'vtc',
+                vae: 'vae',
+                tandem: 'tandem',
+                siege: 'siege',
+                p16: 'enfant-16p',
+                p20: 'enfant-20p',
+                p24: 'enfant-24p',
+                p26: 'enfant-26p',
+            };
+            return map[key] || null;
+        }
+
+        /**
+         * Charge le stock du jour depuis fleet_history.
+         * La ligne courante contient le JSONB {vae:70, vtc:70, ...}.
+         */
+        async function loadFleet() {
+            if (!_supabase) return;
+            const todayStr = new Date().toISOString().slice(0, 10);
+            try {
+                const { data, error } = await _supabase
+                    .from('fleet_history')
+                    .select('date, totals')
+                    .eq('date', todayStr)
+                    .single();
+                if (error) throw error;
+                fleetTotals = data?.totals || {};
+                fleetDate = todayStr;
+                render();
+            } catch (e) {
+                console.warn('⚠️ Stock non chargé depuis fleet_history:', e.message);
+                fleetTotals = {};
+                fleetDate = null;
+            }
+        }
+
+        /**
+         * Retourne le total de stock d'une catégorie, ou null si inconnu.
+         */
+        function getStockFor(key) {
+            if (!fleetTotals || Object.keys(fleetTotals).length === 0) return null;
+            if (key === 'enfant') {
+                // Enfants = somme des vélos pouces
+                const s = (fleetTotals['enfant-16p'] || 0) +
+                          (fleetTotals['enfant-20p'] || 0) +
+                          (fleetTotals['enfant-24p'] || 0) +
+                          (fleetTotals['enfant-26p'] || 0);
+                return s > 0 ? s : null;
+            }
+            const fleetKey = stockKeyMap(key);
+            if (!fleetKey) return null;
+            return fleetTotals[fleetKey] ?? null;
+        }
+
+        /**
+         * Ouvre l'éditeur de stock avec les valeurs actuelles.
+         */
+        function openStockEditor() {
+            if (!_supabase) {
+                document.getElementById('errorBox').textContent = 'Supabase non connecté : impossible de modifier le stock.';
+                document.getElementById('errorBox').classList.remove('hidden');
+                return;
+            }
+            const fields = document.getElementById('stockEditorFields');
+            fields.innerHTML = '';
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+            document.getElementById('stockDateBadge').textContent = todayStr;
+
+            // Clés de la table bike_types / fleet_history
+            const stockKeys = [
+                { key: 'vae', label: 'VAE' },
+                { key: 'vtc', label: 'VTC' },
+                { key: 'tandem', label: 'Tandem' },
+                { key: 'enfant-16p', label: 'Enfant 16p' },
+                { key: 'enfant-20p', label: 'Enfant 20p' },
+                { key: 'enfant-24p', label: 'Enfant 24p' },
+                { key: 'enfant-26p', label: 'Enfant 26p' },
+                { key: 'siege', label: 'Siège bébé' },
+            ];
+
+            for (const s of stockKeys) {
+                const row = document.createElement('div');
+                row.className = 'stock-field-row';
+                const lbl = document.createElement('div');
+                lbl.className = 'stock-field-label';
+                lbl.textContent = s.label;
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = 0;
+                input.className = 'stock-field-input';
+                input.dataset.key = s.key;
+                input.value = fleetTotals[s.key] ?? 0;
+                row.appendChild(lbl);
+                row.appendChild(input);
+                fields.appendChild(row);
+            }
+
+            document.getElementById('stockEditor').classList.remove('hidden');
+            document.getElementById('stockEditor').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        /**
+         * Enregistre le stock du jour (upsert dans fleet_history).
+         */
+        async function saveStock() {
+            const inputs = document.querySelectorAll('.stock-field-input');
+            const totals = {};
+            inputs.forEach(inp => {
+                totals[inp.dataset.key] = parseInt(inp.value, 10) || 0;
+            });
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+            try {
+                const { error } = await _supabase
+                    .from('fleet_history')
+                    .upsert({ date: todayStr, totals, updated_at: new Date().toISOString() }, { onConflict: 'date' });
+                if (error) throw error;
+                fleetTotals = totals;
+                fleetDate = todayStr;
+                closeStockEditor();
+                render();
+            } catch (e) {
+                document.getElementById('errorBox').textContent = 'Erreur enregistrement stock : ' + e.message;
+                document.getElementById('errorBox').classList.remove('hidden');
+            }
+        }
+
+        function closeStockEditor() {
+            document.getElementById('stockEditor').classList.add('hidden');
+        }
+
         function computeViewTotals(bookings) {
             const totals = {};
             for (const k of ORDER) totals[k] = 0;
@@ -493,9 +718,6 @@
             // Cartes de synthèse
             document.getElementById('cardTotalValue').textContent = bookings.length;
             document.getElementById('cardTotalSub').textContent = getDateRangeLabel();
-
-            document.getElementById('cardEnfantsValue').textContent = totals.enfant;
-            document.getElementById('cardEnfantsSub').textContent = `/ ${state.data.stock.enfant || 0} dispo`;
 
             const totalVelos = ['vtc','vae','ville','route','tandem','siege','charrette','charretteChien','p16','p20','p24','p26']
                 .reduce((s, k) => s + (totals[k] || 0), 0);
@@ -522,10 +744,11 @@
                 const name = document.createElement('div');
                 name.className = 'cat-name';
                 name.textContent = LABELS[k] || k;
-                if (k === 'enfant') {
+                const stockTotal = getStockFor(k);
+                if (stockTotal !== null) {
                     const stock = document.createElement('span');
                     stock.className = 'stock';
-                    stock.textContent = `/ ${state.data.stock[k]} dispo`;
+                    stock.textContent = `/ ${stockTotal}`;
                     name.appendChild(stock);
                 }
 
@@ -534,7 +757,7 @@
 
                 const countEl = document.createElement('div');
                 countEl.className = k === 'enfant' ? 'cat-count sub' : 'cat-count';
-                countEl.textContent = totals[k] || 0;
+                countEl.textContent = `${totals[k] || 0}/${stockTotal ?? '–'}`;
 
                 row.appendChild(left);
                 row.appendChild(countEl);
@@ -650,6 +873,9 @@
             if (!document.hidden) loadData();
         }, 5 * 60 * 1000);
 
+        // Démarrage : initialise Supabase puis charge le stock du jour
+        initResaSupabase();
+        loadFleet();
         loadData();
     </script>
 </body>
