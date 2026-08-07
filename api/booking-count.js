@@ -1,12 +1,13 @@
 /**
- * API Vercel — Comptage des réservations depuis un calendrier iCloud public
+ * API Vercel — Comptage des réservations depuis un ou plusieurs calendriers iCloud publics
  *
- * Récupère le calendrier public iCloud (fichier ICS) et applique la même
+ * Récupère le(s) calendrier(s) public(s) iCloud (fichiers ICS) et applique la même
  * logique regex que le script booking_count.js.
  *
  * Variable d'environnement requise (Vercel → Settings → Environment Variables) :
- *   CALENDAR_URL = lien public du calendrier iCloud
- *                  (ex: webcal://pXX-caldav.icloud.com/published/...)
+ *   CALENDAR_URLS = liens publics des calendriers iCloud, séparés par des virgules
+ *                   (ex: webcal://p01-caldav.icloud.com/published/AAA,webcal://p01-caldav.icloud.com/published/BBB)
+ *   CALENDAR_URL  = (rétro-compatible) lien unique d'un seul calendrier
  *
  * Déploiement : ce fichier dans le dossier /api est automatiquement
  * détecté par Vercel comme une Serverless Function.
@@ -150,27 +151,52 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'no-store');
 
-    const calendarUrl = process.env.CALENDAR_URL;
-    if (!calendarUrl) {
+    // Plusieurs calendriers possibles : CALENDAR_URLS séparés par des virgules
+    // (rétro-compatible avec CALENDAR_URL seul)
+    const calendarUrlsRaw = process.env.CALENDAR_URLS || process.env.CALENDAR_URL;
+    if (!calendarUrlsRaw) {
         return res.status(500).json({
-            error: 'CALENDAR_URL non configuré',
-            hint: "Ajoutez le lien public du calendrier iCloud dans les variables d'environnement Vercel. Voir INSTRUCTIONS_MOBILE.md"
+            error: 'CALENDAR_URLS non configuré',
+            hint: "Ajoutez les liens publics des calendriers iCloud (séparés par des virgules) dans les variables d'environnement Vercel. Voir INSTRUCTIONS_MOBILE.md"
+        });
+    }
+
+    // Découpe par virgules, supprime les espaces et les entrées vides
+    const calendarUrls = calendarUrlsRaw
+        .split(',')
+        .map(u => u.trim())
+        .filter(u => u.length > 0);
+
+    if (calendarUrls.length === 0) {
+        return res.status(500).json({
+            error: 'CALENDAR_URLS vide',
+            hint: 'Aucun lien de calendrier valide trouvé. Vérifiez la variable d\'environnement CALENDAR_URLS.'
         });
     }
 
     try {
-        // webcal:// → https:// pour pouvoir télécharger le fichier
-        const icsUrl = calendarUrl.replace(/^webcal:\/\//i, 'https://');
-        const response = await fetch(icsUrl);
-        if (!response.ok) {
-            throw new Error(`Impossible de télécharger le calendrier (HTTP ${response.status})`);
-        }
-        const ics = await response.text();
+        const events = [];
 
-        const events = parseICS(ics);
+        // Télécharge chaque calendrier et fusionne les événements
+        for (const calendarUrl of calendarUrls) {
+            // webcal:// → https:// pour pouvoir télécharger le fichier
+            const icsUrl = calendarUrl.replace(/^webcal:\/\//i, 'https://');
+            const response = await fetch(icsUrl);
+            if (!response.ok) {
+                throw new Error(`Impossible de télécharger le calendrier ${calendarUrl} (HTTP ${response.status})`);
+            }
+            const ics = await response.text();
+            const parsedEvents = parseICS(ics);
+            for (const e of parsedEvents) {
+                e.calendar = calendarUrl;
+            }
+            events.push(...parsedEvents);
+        }
+
         const bookings = events.map(e => ({
             summary: e.summary,
             start: e.startDate ? e.startDate.toISOString() : null,
+            calendar: e.calendar,
             detected: processBookingText(e.summary.toLowerCase()),
         }));
 

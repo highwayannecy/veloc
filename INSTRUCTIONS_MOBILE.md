@@ -30,20 +30,29 @@ Ce projet Vercel contient maintenant :
 3. Menu **Fichier** → **Calendrier partagé** → **Partage public du calendrier**
 4. Copiez le lien `webcal://...` affiché
 
-## Étape 2 — Ajouter le lien au projet (une seule fois, 1 minute)
+## Étape 2 — Ajouter le(s) lien(s) au projet (une seule fois, 1 minute)
+
+> Si vous avez **plusieurs calendriers** (réservations, atelier, etc.), activez le partage public sur **chacun d'eux** (répétez l'Étape 1 pour chaque calendrier) puis collez **tous les liens**, séparés par des virgules, dans une seule variable `CALENDAR_URLS`.
 
 ### Sur vercel.com (recommandé) :
 1. Allez sur votre projet Vercel → **Settings** → **Environment Variables**
 2. Ajoutez :
-   - **Key** : `CALENDAR_URL`
-   - **Value** : le lien `webcal://...` copié
+   - **Key** : `CALENDAR_URLS`
+   - **Value** : le(s) lien(s) `webcal://...` — **plusieurs liens séparés par des virgules** :
+     ```
+     webcal://p01-caldav.icloud.com/published/AAA,webcal://p01-caldav.icloud.com/published/BBB
+     ```
 3. Cliquez **Save**
 4. Redéployez le projet : **Deployments** → `...` → **Redeploy**
 
+> ⚠️ Ne mettez **pas** d'espace après les virgules.
+>
+> L'ancienne variable `CALENDAR_URL` (lien unique) reste supportée pour la rétro-compatibilité, mais `CALENDAR_URLS` la remplace.
+
 ### Ou en local avec le CLI Vercel :
 ```bash
-vercel env add CALENDAR_URL
-# Collez le lien webcal://... puis validez
+vercel env add CALENDAR_URLS
+# Collez le(s) lien(s) webcal://... (séparés par des virgules) puis validez
 vercel redeploy
 ```
 
@@ -110,7 +119,9 @@ GET https://[votre-domaine].vercel.app/api/booking-count
 
 | Erreur | Cause | Solution |
 |--------|-------|----------|
-| `CALENDAR_URL non configuré` | Variable d'environnement absente | Voir Étape 2 |
-| `Impossible de télécharger le calendrier (HTTP 401)` | Le lien public a été révoqué ou le calendrier est privé | Réactivez « Calendrier public » et mettez à jour `CALENDAR_URL` |
+| `CALENDAR_URLS non configuré` | Variable d'environnement absente | Voir Étape 2 |
+| `CALENDAR_URLS vide` | La variable contient des virgules mais aucun lien valide | Vérifiez qu'il n'y a pas d'espaces ou de virgules en trop |
+| `Impossible de télécharger le calendrier ... (HTTP 401)` | Un des liens publics a été révoqué ou le calendrier est privé | Réactivez « Calendrier public » pour ce calendrier et mettez à jour `CALENDAR_URLS` |
+| Les réservations d'un calendrier n'apparaissent pas | Le calendrier n'est pas dans `CALENDAR_URLS` | Ajoutez le lien du calendrier manquant (séparé par une virgule) |
 | `HTTP 404` sur `/resa` | La page n'est pas déployée | Poussez `resa.html` sur votre dépôt Git puis redéployez |
 | Aucune réservation affichée | Les événements sont dans le passé ou un autre calendrier | Vérifiez l'onglet « Toutes » et que le bon calendrier est partagé |

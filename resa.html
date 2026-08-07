@@ -222,6 +222,17 @@
             margin-bottom: 3px;
         }
 
+        .booking-calendar {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 2px 8px;
+            margin-top: 4px;
+        }
+
         .booking-text {
             font-size: 14px;
             color: #334155;
@@ -290,8 +301,8 @@
 
     <div class="tabs">
         <button class="tab active" data-view="today">Aujourd'hui</button>
-        <button class="tab" data-view="upcoming">À venir</button>
-        <button class="tab" data-view="all">Toutes</button>
+        <button class="tab" data-view="tomorrow">Demain</button>
+        <button class="tab" data-view="dayAfter">Après-demain</button>
     </div>
 
     <!-- Cartes de synthèse -->
@@ -395,37 +406,53 @@
             return parts.length > 0 ? parts.join(' · ') : NO_DETECT_LABEL;
         }
 
+        /**
+         * Dérive un nom lisible de calendrier depuis son URL iCloud.
+         * Ex : webcal://p01-caldav.icloud.com/published/ABC123
+         *   → "ABC123"
+         */
+        function calendarName(url) {
+            if (!url) return '';
+            const lastPart = url.split('/').pop() || '';
+            return lastPart.slice(0, 10);
+        }
+
         let state = {
             data: null,
             view: 'today',
         };
 
-        function isToday(iso) {
+        /**
+         * Retourne l'objet Date correspondant à "aujourd'hui + offset jours"
+         * à minuit (heure locale), pour comparer les dates.
+         */
+        function dateAtMidnight(offsetDays) {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays);
+        }
+
+        function isSameDay(iso, offsetDays) {
             if (!iso) return false;
             const d = new Date(iso);
-            const now = new Date();
-            return d.getFullYear() === now.getFullYear() &&
-                   d.getMonth() === now.getMonth() &&
-                   d.getDate() === now.getDate();
+            const target = dateAtMidnight(offsetDays);
+            return d.getFullYear() === target.getFullYear() &&
+                   d.getMonth() === target.getMonth() &&
+                   d.getDate() === target.getDate();
         }
 
         function getFilteredBookings() {
             if (!state.data) return [];
-            if (state.view === 'all') return state.data.bookings;
-            if (state.view === 'today') return state.data.bookings.filter(b => isToday(b.start));
-            return state.data.bookings.filter(b => {
-                if (!b.start) return true;
-                const d = new Date(b.start);
-                const now = new Date();
-                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                return d >= startOfToday;
-            });
+            if (state.view === 'today') return state.data.bookings.filter(b => isSameDay(b.start, 0));
+            if (state.view === 'tomorrow') return state.data.bookings.filter(b => isSameDay(b.start, 1));
+            if (state.view === 'dayAfter') return state.data.bookings.filter(b => isSameDay(b.start, 2));
+            return [];
         }
 
         function getDateRangeLabel() {
             if (state.view === 'today') return "Aujourd'hui";
-            if (state.view === 'upcoming') return 'À venir';
-            return 'Toutes';
+            if (state.view === 'tomorrow') return 'Demain';
+            if (state.view === 'dayAfter') return 'Après-demain';
+            return '';
         }
 
         function computeViewTotals(bookings) {
@@ -520,6 +547,12 @@
                     text.textContent = b.summary;
                     info.appendChild(date);
                     info.appendChild(text);
+                    if (b.calendar) {
+                        const cal = document.createElement('div');
+                        cal.className = 'booking-calendar';
+                        cal.textContent = '📅 ' + calendarName(b.calendar);
+                        info.appendChild(cal);
+                    }
 
                     const detail = document.createElement('div');
                     detail.className = 'booking-detail';
