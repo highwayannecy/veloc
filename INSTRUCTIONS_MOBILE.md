@@ -38,11 +38,15 @@ Ce projet Vercel contient maintenant :
 1. Allez sur votre projet Vercel → **Settings** → **Environment Variables**
 2. Ajoutez :
    - **Key** : `CALENDAR_URLS`
-   - **Value** : le(s) lien(s) `webcal://...` — **plusieurs liens séparés par des virgules ou des points-virgules** :
-     ```
-     webcal://p01-caldav.icloud.com/published/AAA;webcal://p01-caldav.icloud.com/published/BBB
-     ```
-3. Cliquez **Save**
+     - **Value** : le(s) lien(s) `webcal://...` — **plusieurs liens séparés par des virgules ou des points-virgules** :
+       ```
+       webcal://p01-caldav.icloud.com/published/AAA;webcal://p01-caldav.icloud.com/published/BBB
+       ```
+   - **Key** : `SUPABASE_URL`
+     - **Value** : URL de votre projet Supabase (ex : `https://xxxx.supabase.co`)
+   - **Key** : `SUPABASE_ANON_KEY`
+     - **Value** : clé publique `anon` de votre projet Supabase (Settings → API)
+3. Cliquez **Save** pour chacune
 4. Redéployez le projet : **Deployments** → `...` → **Redeploy**
 
 > ⚠️ Ne mettez **pas** d'espace après les séparateurs.
@@ -52,9 +56,16 @@ Ce projet Vercel contient maintenant :
 ### Ou en local avec le CLI Vercel :
 ```bash
 vercel env add CALENDAR_URLS
-# Collez le(s) lien(s) webcal://... (séparés par , ou ;) puis validez
+vercel env add SUPABASE_URL
+vercel env add SUPABASE_ANON_KEY
 vercel redeploy
 ```
+
+> ⚠️ `SUPABASE_URL` et `SUPABASE_ANON_KEY` sont **obligatoires** pour que le serveur charge :
+> - Les types de vélos et leurs mots-clés (`bike_types`)
+> - Le stock du jour (`fleet_history`)
+>
+> Sans elles, l'API fonctionne mais sans détection des types et sans stock affiché.
 
 > Le fichier `vercel.json` contient déjà `"cleanUrls": true`, donc la page sera accessible à l'URL :
 > **`https://[votre-domaine].vercel.app/resa`**
@@ -85,27 +96,72 @@ Pour un accès en 1 tap :
 2. Menu ⋮ > **Ajouter à l'écran d'accueil**
 3. **Ajouter**
 
-## Réglages du stock en cas de changement
+## Gestion du stock (fleet_history)
 
-Les totaux du stock sont définis dans `api/booking-count.js` :
-```js
-const STOCK = {
-    vtc: 76,
-    vae: 65,
-    ville: 0,
-    route: 0,
-    tandem: 1,
-    siege: 6,
-    charrette: 0,
-    charretteChien: 0,
-    p16: 1,
-    p20: 2,
-    p24: 2,
-    p26: 2,
-    enfant: 7,
-};
+Le stock est géré **dans Supabase** (table `fleet_history`, une ligne par date avec un JSONB `totals`), plus dans le code.
+
+### Depuis la page mobile `/resa` :
+1. Bouton **« ✏️ Stock »** dans le panneau Détail
+2. Modifiez les quantités (VAE, VTC, Tandem, Enfants 16p/20p/24p/26p, Siège...)
+3. **💾 Enregistrer** → `upsert` dans `fleet_history` pour la date du jour
+
+### Directement dans Supabase :
+Table Editor → `fleet_history` → modifiez la ligne de la date souhaitée → colonne `totals` (JSON).
+
+> **⚙️ Certains types (`ville`, `route`, `charrette`, `charretteChien`) n'existaient pas à l'origine** dans `fleet_history`. Si vous voyez `–` dans la colonne stock pour ces types, ouvrez l'éditeur Stock et enregistrez une valeur : ils seront ajoutés au JSON.
+
+## ➕ Ajouter un nouveau type de vélo (LIAISON AUTOMATIQUE)
+
+Quand vous ajoutez un type dans `bike_types`, **tout se lie automatiquement** :
+- Les **textes de réservation** sont détectés via `match_keywords`
+- L'affichage dans `/resa` (label, icône, ordre) utilise `label`, `icon`, `sort_order`
+- Le stock utilise `fleet_key` dans `fleet_history`
+- Les types marqués `is_child_size = true` sont additionnés dans le total « Enfants »
+
+### Exemple : ajouter un type « VTC Électrique pliant »
+
+Dans Supabase Table Editor → `bike_types` → **New row** :
+
+| Colonne | Valeur |
+|---------|--------|
+| `key` | `vae-pliant` |
+| `label` | `VAE Pliant` |
+| `icon` | `🧳` |
+| `match_keywords` | `{pliant, pliants, vae pliant}` |
+| `fleet_key` | `vae-pliant` |
+| `is_child_size` | `false` |
+| `require_number` | `false` |
+| `sort_order` | `14` |
+| `is_active` | `true` |
+| `default_total` | `3` |
+
+Puis, pour que le stock existe pour aujourd'hui :
+```sql
+UPDATE fleet_history
+SET totals = totals || '{"vae-pliant":3}'::jsonb,
+    updated_at = NOW()
+WHERE date = TO_CHAR(NOW(), 'YYYY-MM-DD');
 ```
-Modifiez ces valeurs puis redéployez.
+
+**Résultat sans redéploiement** : après un simple actualiser de `/resa`, les réservations contenant « pliant » seront comptées dans « VAE Pliant », et le total `/ stock` apparaîtra.
+
+> ⚠️ Ne modifier que `default_total` ne change pas le stock du jour : la ligne `fleet_history` du jour doit contenir la clé `fleet_key`.
+
+### Colonnes de `bike_types`
+
+| Colonne | Rôle |
+|---------|------|
+| `key` | Identifiant unique (utilisé dans les comptages `detected`) |
+| `label` | Nom affiché dans l'interface |
+| `icon` | Emoji affiché devant le label |
+| `description` | Description (optionnelle) |
+| `default_total` | Valeur suggérée pour un nouveau jour (non automatique) |
+| `match_keywords` | **Mots-clés détectés dans les textes de réservation** (array de textes) |
+| `fleet_key` | Clé utilisée dans `fleet_history.totals` (si vide : `key`) |
+| `is_child_size` | `true` = vélo enfant, additionné au total « Enfants » |
+| `require_number` | `true` = le nombre avant le mot-clé est obligatoire (`2 enfant`), `false` = nombre optionnel (`26p` = 1) |
+| `sort_order` | Ordre d'affichage |
+| `is_active` | `false` = masqué, non détecté |
 
 ## Test de l'API seule
 

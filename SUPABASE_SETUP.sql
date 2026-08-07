@@ -32,27 +32,48 @@ CREATE TABLE reservation_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Table des types de vélos (modifiable par l'admin)
+-- ============================================================
+-- TABLE bike_types : SOURCE UNIQUE de configuration
+-- Chaque ligne lie :
+--   - key               : identifiant du type (utilisé dans detected)
+--   - label             : nom affiché dans l'interface
+--   - match_keywords    : mots-clés reconnus dans les textes de réservation
+--   - fleet_key         : clé utilisée dans fleet_history.totals (NULL = key)
+--   - is_child_size     : TRUE si c'est un vélo enfant (compté dans "Enfants")
+--   - require_number    : TRUE si un nombre est obligatoire avant le mot-clé
+-- ============================================================
 CREATE TABLE bike_types (
     key TEXT PRIMARY KEY,
     label TEXT NOT NULL,
     icon TEXT DEFAULT '🚲',
     description TEXT DEFAULT '',
     default_total INTEGER DEFAULT 0,
+    match_keywords TEXT[] DEFAULT '{}',
+    fleet_key TEXT,
+    is_child_size BOOLEAN DEFAULT FALSE,
+    require_number BOOLEAN DEFAULT FALSE,
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-INSERT INTO bike_types (key, label, icon, description, default_total, sort_order) VALUES
-    ('vae', 'VAE', '⚡', '', 70, 1),
-    ('vtc', 'VTC', '🚲', '', 70, 2),
-    ('tandem', 'Tandem', '👫', '', 1, 3),
-    ('enfant-16p', 'Enfant 16p', '🧒', '4 à 6 ans', 1, 4),
-    ('enfant-20p', 'Enfant 20p', '🧒', '6 à 8 ans', 2, 5),
-    ('enfant-24p', 'Enfant 24p', '🧒', '8 à 10 ans', 2, 6),
-    ('enfant-26p', 'Enfant 26p', '🧒', '10 ans et +', 2, 7),
-    ('siege', 'Siège bébé', '🍼', '', 7, 8);
+INSERT INTO bike_types (key, label, icon, description, default_total, match_keywords, fleet_key, is_child_size, require_number, sort_order) VALUES
+    -- "enfant" est une SYNTHÈSE calculée automatiquement (somme des is_child_size).
+    -- Il n'a pas de mots-clés propres et n'est pas lui-même is_child_size,
+    -- sinon il serait additionné à lui-même (double comptage).
+    ('enfant',         'Enfants (total équipe)', '🧒',  'Synthèse automatique : somme des tailles enfants', 2,   '{}',                    'enfant',                 FALSE, FALSE, 1),
+    ('vae',            'VAE',                   '⚡',  '', 70, '{vae, électrique, electrique, ebike, elec}',                              'vae',                     FALSE, FALSE, 2),
+    ('vtc',            'VTC',                   '🚲',  '', 70, '{vtc, classique, mecanique, mécanique}',                                    'vtc',                     FALSE, FALSE, 3),
+    ('ville',          'Ville',                 '🏙️', '', 10, '{ville}',                                                                  'ville',                   FALSE, FALSE, 4),
+    ('route',          'Route',                 '🏁',  '', 5,  '{route}',                                                                  'route',                   FALSE, FALSE, 5),
+    ('tandem',         'Tandem',                '👫',  '', 1,  '{tandem}',                                                                 'tandem',                  FALSE, FALSE, 6),
+    ('siege',          'Siège bébé',            '🍼',  '', 7,  '{siege, siège, siege enfant, siège enfant, siege bebe, siège bébé, bebe, bébé}', 'siege', FALSE, FALSE, 7),
+    ('charretteChien', 'Charrette chien',       '🐕',  '', 1,  '{charrette chien, charrettes chien, remorque chien}',                       'charretteChien',          FALSE, FALSE, 8),
+    ('charrette',      'Charrette / Remorque',  '🛞',  '', 3,  '{charrette, charrettes, charette, carette, remorque}',                       'charrette',               FALSE, FALSE, 9),
+    ('enfant-16p',     'Enfant 16p',            '🧒',  '4 à 6 ans', 1,  '{16p, 16 pouces, 16pouces, 16 p}',                                 'enfant-16p',              TRUE,  FALSE, 10),
+    ('enfant-20p',     'Enfant 20p',            '🧒',  '6 à 8 ans', 2,  '{20p, 20 pouces, 20pouces, 20 p}',                                 'enfant-20p',              TRUE,  FALSE, 11),
+    ('enfant-24p',     'Enfant 24p',            '🧒',  '8 à 10 ans', 2,  '{24p, 24 pouces, 24pouces, 24 p}',                               'enfant-24p',              TRUE,  FALSE, 12),
+    ('enfant-26p',     'Enfant 26p',            '🧒',  '10 ans et +', 2,  '{26p, 26 pouces, 26pouces, 26 p}',                               'enfant-26p',              TRUE,  FALSE, 13);
 
 -- Table flotte avec historique : une ligne par date, JSONB pour les totaux
 CREATE TABLE fleet_history (
@@ -61,9 +82,9 @@ CREATE TABLE fleet_history (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Ligne initiale pour aujourd'hui
+-- Ligne initiale pour aujourd'hui (clés = fleet_key des bike_types)
 INSERT INTO fleet_history (date, totals)
-VALUES (TO_CHAR(NOW(), 'YYYY-MM-DD'), '{"vae":70,"vtc":70,"tandem":1,"enfant-16p":1,"enfant-20p":2,"enfant-24p":2,"enfant-26p":2,"siege":7}');
+VALUES (TO_CHAR(NOW(), 'YYYY-MM-DD'), '{"vae":70,"vtc":70,"ville":10,"route":5,"tandem":1,"siege":7,"charretteChien":1,"charrette":3,"enfant":2,"enfant-16p":1,"enfant-20p":2,"enfant-24p":2,"enfant-26p":2}');
 
 CREATE INDEX idx_reservations_date ON reservations (start_date);
 CREATE INDEX idx_reservations_status ON reservations (status);
@@ -80,7 +101,34 @@ CREATE POLICY "Accès complet items" ON reservation_items FOR ALL TO anon USING 
 CREATE POLICY "Accès complet historique flotte" ON fleet_history FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet types vélos" ON bike_types FOR ALL TO anon USING (true) WITH CHECK (true);
 
+-- ============================================================
+-- MISE À JOUR D'UNE BASE EXISTANTE
+-- Si vos tables existent déjà, exécutez UNIQUEMENT ce bloc :
+-- ============================================================
+-- ALTER TABLE bike_types ADD COLUMN IF NOT EXISTS match_keywords TEXT[] DEFAULT '{}';
+-- ALTER TABLE bike_types ADD COLUMN IF NOT EXISTS fleet_key TEXT;
+-- ALTER TABLE bike_types ADD COLUMN IF NOT EXISTS is_child_size BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE bike_types ADD COLUMN IF NOT EXISTS require_number BOOLEAN DEFAULT FALSE;
+
+-- INSERT INTO bike_types (key, label, icon, description, default_total, match_keywords, fleet_key, is_child_size, require_number, sort_order) VALUES
+--     ('enfant', 'Enfants (total équipe)', '🧒', 'Synthèse', 2, '{enfant, junior, vélo enfant, vélo junior, velo enfant, velo junior}', 'enfant', TRUE, TRUE, 1)
+-- ON CONFLICT (key) DO UPDATE SET
+--     match_keywords = EXCLUDED.match_keywords,
+--     fleet_key = EXCLUDED.fleet_key,
+--     is_child_size = EXCLUDED.is_child_size,
+--     require_number = EXCLUDED.require_number,
+--     sort_order = EXCLUDED.sort_order;
+-- ... (répéter pour chaque type, voir les INSERT ci-dessus)
+--
+-- Puis ajouter les nouvelles clés au stock du jour :
+-- UPDATE fleet_history
+-- SET totals = totals || '{"ville":10,"route":5,"charretteChien":1,"charrette":3,"enfant":2}'::jsonb,
+--     updated_at = NOW()
+-- WHERE date = TO_CHAR(NOW(), 'YYYY-MM-DD');
+
+-- ============================================================
 -- Données de démo
+-- ============================================================
 INSERT INTO reservations (client_name, client_phone, start_date, is_long_duration, duration_days)
 VALUES
     ('Jean', '0612345678', NOW() + INTERVAL '1 day' + INTERVAL '9 hours', FALSE, 1),

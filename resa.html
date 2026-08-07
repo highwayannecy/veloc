@@ -7,11 +7,7 @@
     <link rel="icon" href="assets/logo_veloc.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -21,29 +17,17 @@
             padding: 20px 16px 40px;
         }
 
-        header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+        header { text-align: center; margin-bottom: 24px; }
 
         header img {
-            width: 64px;
-            height: 64px;
+            width: 64px; height: 64px;
             border-radius: 14px;
             margin-bottom: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
-        header h1 {
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        header .updated {
-            font-size: 13px;
-            color: #64748b;
-            margin-top: 4px;
-        }
+        header h1 { font-size: 22px; font-weight: 800; }
+        header .updated { font-size: 13px; color: #64748b; margin-top: 4px; }
 
         .error-box {
             background: #fee2e2;
@@ -57,8 +41,7 @@
         }
 
         .tabs {
-            display: flex;
-            gap: 8px;
+            display: flex; gap: 8px;
             margin-bottom: 20px;
             background: #e2e8f0;
             padding: 6px;
@@ -79,53 +62,28 @@
             transition: all 0.2s;
         }
 
-        .tab.active {
-            background: #ffffff;
-            color: #0052cc;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
+        .tab.active { background: #ffffff; color: #0052cc; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
 
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 24px;
-        }
+        .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
 
         .summary-card {
-            background: #0052cc;
-            color: #ffffff;
+            background: #0052cc; color: #ffffff;
             border-radius: 16px;
             padding: 18px 14px;
             text-align: center;
             box-shadow: 0 6px 16px rgba(0, 82, 204, 0.25);
         }
 
-        .summary-card.green {
-            background: #16a34a;
-            box-shadow: 0 6px 16px rgba(22, 163, 74, 0.25);
-        }
-
         .summary-card .label {
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 12px; font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             opacity: 0.9;
             margin-bottom: 4px;
         }
 
-        .summary-card .value {
-            font-size: 32px;
-            font-weight: 800;
-            line-height: 1.1;
-        }
-
-        .summary-card .sub {
-            font-size: 12px;
-            opacity: 0.85;
-            margin-top: 4px;
-        }
+        .summary-card .value { font-size: 32px; font-weight: 800; line-height: 1.1; }
+        .summary-card .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
 
         .panel {
             background: #ffffff;
@@ -136,8 +94,7 @@
         }
 
         .panel-title {
-            font-size: 16px;
-            font-weight: 800;
+            font-size: 16px; font-weight: 800;
             margin-bottom: 16px;
             color: #0f172a;
             display: flex;
@@ -146,10 +103,8 @@
         }
 
         .panel-title .count-badge {
-            background: #0052cc;
-            color: #fff;
-            font-size: 13px;
-            font-weight: 700;
+            background: #0052cc; color: #fff;
+            font-size: 13px; font-weight: 700;
             padding: 3px 10px;
             border-radius: 999px;
         }
@@ -161,47 +116,15 @@
             padding: 12px 0;
             border-bottom: 1px solid #f1f5f9;
         }
+        .cat-row:last-child { border-bottom: none; }
 
-        .cat-row:last-child {
-            border-bottom: none;
-        }
+        .cat-left { display: flex; align-items: center; gap: 10px; }
 
-        .cat-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .cat-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 3px;
-            flex-shrink: 0;
-        }
-
-        .cat-name {
-            font-size: 15px;
-            font-weight: 600;
-        }
-
-        .cat-count {
-            font-size: 18px;
-            font-weight: 800;
-            color: #0f172a;
-        }
-
-        .cat-count.sub {
-            font-size: 14px;
-            font-weight: 700;
-            color: #0052cc;
-        }
-
-        .stock {
-            font-size: 12px;
-            color: #94a3b8;
-            font-weight: 500;
-            margin-left: 6px;
-        }
+        .cat-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+        .cat-name { font-size: 15px; font-weight: 600; }
+        .cat-count { font-size: 18px; font-weight: 800; color: #0f172a; }
+        .cat-count.sub { font-size: 14px; font-weight: 700; color: #0052cc; }
+        .stock { font-size: 12px; color: #94a3b8; font-weight: 500; margin-left: 6px; }
 
         .booking-item {
             padding: 14px 0;
@@ -211,22 +134,13 @@
             align-items: flex-start;
             gap: 12px;
         }
+        .booking-item:last-child { border-bottom: none; }
 
-        .booking-item:last-child {
-            border-bottom: none;
-        }
-
-        .booking-date {
-            font-size: 12px;
-            font-weight: 700;
-            color: #0052cc;
-            margin-bottom: 3px;
-        }
+        .booking-date { font-size: 12px; font-weight: 700; color: #0052cc; margin-bottom: 3px; }
 
         .booking-calendar {
             display: inline-block;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 11px; font-weight: 600;
             color: #64748b;
             background: #f1f5f9;
             border-radius: 6px;
@@ -234,16 +148,10 @@
             margin-top: 4px;
         }
 
-        .booking-text {
-            font-size: 14px;
-            color: #334155;
-            line-height: 1.4;
-        }
+        .booking-text { font-size: 14px; color: #334155; line-height: 1.4; }
 
         .booking-detail {
-            font-size: 13px;
-            color: #0f172a;
-            font-weight: 700;
+            font-size: 13px; color: #0f172a; font-weight: 700;
             text-align: right;
             white-space: nowrap;
             background: #eff6ff;
@@ -252,20 +160,9 @@
             max-width: 55%;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 30px 16px;
-            color: #94a3b8;
-            font-size: 14px;
-        }
+        .empty-state { text-align: center; padding: 30px 16px; color: #94a3b8; font-size: 14px; }
 
-        .footer-note {
-            text-align: center;
-            font-size: 12px;
-            color: #94a3b8;
-            margin-top: 30px;
-            line-height: 1.6;
-        }
+        .footer-note { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 30px; line-height: 1.6; }
 
         .refresh-btn {
             display: block;
@@ -281,17 +178,9 @@
             cursor: pointer;
             box-shadow: 0 6px 16px rgba(0, 82, 204, 0.25);
         }
+        .refresh-btn:active { transform: scale(0.98); }
 
-        .refresh-btn:active {
-            transform: scale(0.98);
-        }
-
-        .cancel-btn {
-            background: #e2e8f0;
-            color: #475569;
-            box-shadow: none;
-            margin-top: 8px;
-        }
+        .cancel-btn { background: #e2e8f0; color: #475569; box-shadow: none; margin-top: 8px; }
 
         .edit-stock-btn {
             background: #f1f5f9;
@@ -303,11 +192,7 @@
             font-weight: 700;
             cursor: pointer;
         }
-
-        .edit-stock-btn:active {
-            transform: scale(0.98);
-            background: #e2e8f0;
-        }
+        .edit-stock-btn:active { transform: scale(0.98); background: #e2e8f0; }
 
         .stock-field-row {
             display: flex;
@@ -316,15 +201,9 @@
             padding: 10px 0;
             border-bottom: 1px solid #f1f5f9;
         }
+        .stock-field-row:last-child { border-bottom: none; }
 
-        .stock-field-row:last-child {
-            border-bottom: none;
-        }
-
-        .stock-field-label {
-            font-size: 15px;
-            font-weight: 600;
-        }
+        .stock-field-label { font-size: 15px; font-weight: 600; }
 
         .stock-field-input {
             width: 80px;
@@ -337,16 +216,9 @@
             color: #0f172a;
             background: #f8fafc;
         }
+        .stock-field-input:focus { outline: none; border-color: #0052cc; background: #eff6ff; }
 
-        .stock-field-input:focus {
-            outline: none;
-            border-color: #0052cc;
-            background: #eff6ff;
-        }
-
-        .hidden {
-            display: none;
-        }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -366,19 +238,19 @@
 
     <!-- Cartes de synthèse -->
     <div class="summary-cards">
-        <div class="summary-card" id="cardTotal">
+        <div class="summary-card">
             <div class="label">Résa</div>
             <div class="value" id="cardTotalValue">–</div>
             <div class="sub" id="cardTotalSub"></div>
         </div>
-        <div class="summary-card" id="cardVelos">
+        <div class="summary-card">
             <div class="label">Vélos</div>
             <div class="value" id="cardVelosValue">–</div>
             <div class="sub" id="cardVelosSub"></div>
         </div>
     </div>
 
-    <!-- Détail par catégorie -->
+    <!-- Détail par catégorie (généré depuis bike_types) -->
     <div class="panel">
         <div class="panel-title">
             Détail
@@ -411,50 +283,36 @@
     <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
 
     <div class="footer-note">
-        Mise à jour automatique à chaque rechargement.<br>
+        Types de vélos, mots-clés et stock sont gérés dans Supabase (bike_types / fleet_history).<br>
         Données issues du calendrier partagé iCloud.
     </div>
 
     <script>
-        const LABELS = {
-            vtc:            'VTC',
-            vae:            'VAE',
-            ville:          'Ville',
-            route:          'Route',
-            tandem:         'Tandem',
-            siege:          'Siège',
-            charrette:      'Charrette',
-            charretteChien: 'Charrette chien',
-            p16:            '16p',
-            p20:            '20p',
-            p24:            '24p',
-            p26:            '26p',
-            enfant:         'Enfants (total)',
+        // ============================================================
+        // CONFIG SUPABASE (identique à supabase.js)
+        // ============================================================
+        const SUPABASE_CONFIG = {
+            url: 'https://kltvxgupcfscdzjorxtu.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdHZ4Z3VwY2ZzY2R6am9yeHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDEyNDEsImV4cCI6MjA5OTc3NzI0MX0.V4VT_xHbquzA-IeL3YOFEJYVrrcnaV9QmI-dRSiFHb8'
         };
 
-        const COLORS = {
-            vtc:            '#3b82f6',
-            vae:            '#10b981',
-            ville:          '#f59e0b',
-            route:          '#ef4444',
-            tandem:         '#8b5cf6',
-            siege:          '#ec4899',
-            charrette:      '#78716c',
-            charretteChien: '#a8a29e',
-            p16:            '#f97316',
-            p20:            '#f97316',
-            p24:            '#f97316',
-            p26:            '#f97316',
-            enfant:         '#0052cc',
+        // Calendrier de Richard (pour l'affichage "Richard" / "Véloc")
+        const RICHARD_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
+
+        let _supabase = null;
+        let state = {
+            data: null,
+            view: 'today',
         };
 
-        const ORDER = [
-            'vtc', 'vae', 'ville', 'route', 'tandem', 'siege',
-            'charrette', 'charretteChien',
-            'enfant', 'p16', 'p20', 'p24', 'p26',
-        ];
+        // ============================================================
+        // HELPERS D'AFFICHAGE
+        // ============================================================
 
-        const NO_DETECT_LABEL = 'Aucun vélo détecté';
+        function calendarName(url) {
+            if (!url) return '';
+            return url === RICHARD_CALENDAR ? 'Richard' : 'Véloc';
+        }
 
         function formatDate(iso) {
             if (!iso) return 'Date inconnue';
@@ -462,10 +320,6 @@
             return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
         }
 
-        /**
-         * Formate une date en incluant l'heure si disponible.
-         * Ex : "ven. 7 août · 14:00" ou "ven. 7 août"
-         */
         function formatDateWithHour(iso) {
             if (!iso) return '';
             const d = new Date(iso);
@@ -475,40 +329,41 @@
             return datePart + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         }
 
+        /**
+         * Retourne la liste des types (depuis bike_types chargés via l'API).
+         */
+        function getTypes() {
+            return state.data?.types || [];
+        }
+
+        /**
+         * Retourne le stock total d'un type (depuis fleet_history, chargé via l'API).
+         */
+        function getStockFor(key) {
+            const stock = state.data?.stock;
+            if (!stock || typeof stock !== 'object') return null;
+            const type = getTypes().find(t => t.key === key);
+            const fleetKey = type?.fleetKey || key;
+            return stock[fleetKey] ?? null;
+        }
+
+        /**
+         * Résumé lisible d'une réservation (ex : "3 vtc · 1 26p").
+         */
         function formatSummary(detected) {
             const parts = [];
-            for (const key of ORDER) {
-                if (detected[key]) {
-                    parts.push(`${detected[key]} ${LABELS[key] || key}`);
-                }
+            for (const t of getTypes()) {
+                if (!t.hasKeywords) continue; // types sans mot-clé (synthèse) non affichés dans le détail
+                const count = detected[t.key] || 0;
+                if (count > 0) parts.push(`${count} ${t.label}`);
             }
-            return parts.length > 0 ? parts.join(' · ') : NO_DETECT_LABEL;
+            return parts.length > 0 ? parts.join(' · ') : 'Aucun vélo détecté';
         }
 
-        /**
-         * Calendrier de Richard (lien connu).
-         * URL complète : webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8v...
-         */
-        const RICHARD_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
+        // ============================================================
+        // FILTRES PAR JOUR (J / J+1 / J+2)
+        // ============================================================
 
-
-        /**
-         * Nom lisible d'un calendrier : "Richard" si c'est le sien, sinon "Véloc".
-         */
-        function calendarName(url) {
-            if (!url) return '';
-            return url === RICHARD_CALENDAR ? 'Richard' : 'Véloc';
-        }
-
-        let state = {
-            data: null,
-            view: 'today',
-        };
-
-        /**
-         * Retourne l'objet Date correspondant à "aujourd'hui + offset jours"
-         * à minuit (heure locale), pour comparer les dates.
-         */
         function dateAtMidnight(offsetDays) {
             const now = new Date();
             return new Date(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays);
@@ -538,172 +393,22 @@
             return '';
         }
 
-        // ============ SUPABASE / STOCK (fleet_history) ============
-        // Configuration identique à supabase.js
-        const SUPABASE_CONFIG = {
-            url: 'https://kltvxgupcfscdzjorxtu.supabase.co',
-            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdHZ4Z3VwY2ZzY2R6am9yeHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDEyNDEsImV4cCI6MjA5OTc3NzI0MX0.V4VT_xHbquzA-IeL3YOFEJYVrrcnaV9QmI-dRSiFHb8'
-        };
-
-        let _supabase = null;
-        let fleetTotals = {};
-        let fleetDate = null;
-
-        function initResaSupabase() {
-            if (window.supabase && !_supabase) {
-                try {
-                    _supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
-                    console.log('✅ Supabase connecté (resa.html)');
-                } catch (e) {
-                    console.error('❌ Erreur Supabase:', e);
-                }
-            }
-        }
-
-        /**
-         * Mappage clé de comptage → clé du JSONB fleet_history
-         */
-        function stockKeyMap(key) {
-            const map = {
-                vtc: 'vtc',
-                vae: 'vae',
-                tandem: 'tandem',
-                siege: 'siege',
-                p16: 'enfant-16p',
-                p20: 'enfant-20p',
-                p24: 'enfant-24p',
-                p26: 'enfant-26p',
-            };
-            return map[key] || null;
-        }
-
-        /**
-         * Charge le stock du jour depuis fleet_history.
-         * La ligne courante contient le JSONB {vae:70, vtc:70, ...}.
-         */
-        async function loadFleet() {
-            if (!_supabase) return;
-            const todayStr = new Date().toISOString().slice(0, 10);
-            try {
-                const { data, error } = await _supabase
-                    .from('fleet_history')
-                    .select('date, totals')
-                    .eq('date', todayStr)
-                    .single();
-                if (error) throw error;
-                fleetTotals = data?.totals || {};
-                fleetDate = todayStr;
-                render();
-            } catch (e) {
-                console.warn('⚠️ Stock non chargé depuis fleet_history:', e.message);
-                fleetTotals = {};
-                fleetDate = null;
-            }
-        }
-
-        /**
-         * Retourne le total de stock d'une catégorie, ou null si inconnu.
-         */
-        function getStockFor(key) {
-            if (!fleetTotals || Object.keys(fleetTotals).length === 0) return null;
-            if (key === 'enfant') {
-                // Enfants = somme des vélos pouces
-                const s = (fleetTotals['enfant-16p'] || 0) +
-                          (fleetTotals['enfant-20p'] || 0) +
-                          (fleetTotals['enfant-24p'] || 0) +
-                          (fleetTotals['enfant-26p'] || 0);
-                return s > 0 ? s : null;
-            }
-            const fleetKey = stockKeyMap(key);
-            if (!fleetKey) return null;
-            return fleetTotals[fleetKey] ?? null;
-        }
-
-        /**
-         * Ouvre l'éditeur de stock avec les valeurs actuelles.
-         */
-        function openStockEditor() {
-            if (!_supabase) {
-                document.getElementById('errorBox').textContent = 'Supabase non connecté : impossible de modifier le stock.';
-                document.getElementById('errorBox').classList.remove('hidden');
-                return;
-            }
-            const fields = document.getElementById('stockEditorFields');
-            fields.innerHTML = '';
-
-            const todayStr = new Date().toISOString().slice(0, 10);
-            document.getElementById('stockDateBadge').textContent = todayStr;
-
-            // Clés de la table bike_types / fleet_history
-            const stockKeys = [
-                { key: 'vae', label: 'VAE' },
-                { key: 'vtc', label: 'VTC' },
-                { key: 'tandem', label: 'Tandem' },
-                { key: 'enfant-16p', label: 'Enfant 16p' },
-                { key: 'enfant-20p', label: 'Enfant 20p' },
-                { key: 'enfant-24p', label: 'Enfant 24p' },
-                { key: 'enfant-26p', label: 'Enfant 26p' },
-                { key: 'siege', label: 'Siège bébé' },
-            ];
-
-            for (const s of stockKeys) {
-                const row = document.createElement('div');
-                row.className = 'stock-field-row';
-                const lbl = document.createElement('div');
-                lbl.className = 'stock-field-label';
-                lbl.textContent = s.label;
-                const input = document.createElement('input');
-                input.type = 'number';
-                input.min = 0;
-                input.className = 'stock-field-input';
-                input.dataset.key = s.key;
-                input.value = fleetTotals[s.key] ?? 0;
-                row.appendChild(lbl);
-                row.appendChild(input);
-                fields.appendChild(row);
-            }
-
-            document.getElementById('stockEditor').classList.remove('hidden');
-            document.getElementById('stockEditor').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        /**
-         * Enregistre le stock du jour (upsert dans fleet_history).
-         */
-        async function saveStock() {
-            const inputs = document.querySelectorAll('.stock-field-input');
-            const totals = {};
-            inputs.forEach(inp => {
-                totals[inp.dataset.key] = parseInt(inp.value, 10) || 0;
-            });
-
-            const todayStr = new Date().toISOString().slice(0, 10);
-            try {
-                const { error } = await _supabase
-                    .from('fleet_history')
-                    .upsert({ date: todayStr, totals, updated_at: new Date().toISOString() }, { onConflict: 'date' });
-                if (error) throw error;
-                fleetTotals = totals;
-                fleetDate = todayStr;
-                closeStockEditor();
-                render();
-            } catch (e) {
-                document.getElementById('errorBox').textContent = 'Erreur enregistrement stock : ' + e.message;
-                document.getElementById('errorBox').classList.remove('hidden');
-            }
-        }
-
-        function closeStockEditor() {
-            document.getElementById('stockEditor').classList.add('hidden');
-        }
+        // ============================================================
+        // RENDU
+        // ============================================================
 
         function computeViewTotals(bookings) {
             const totals = {};
-            for (const k of ORDER) totals[k] = 0;
+            for (const t of getTypes()) totals[t.key] = 0;
             for (const b of bookings) {
                 for (const k in b.detected) {
                     if (totals[k] !== undefined) totals[k] += b.detected[k];
-                    if (['p16', 'p20', 'p24', 'p26'].includes(k)) totals.enfant += b.detected[k];
+                }
+                // Additionne les vélos enfants (isChildSize) au type "enfant"
+                for (const t of getTypes()) {
+                    if (t.isChildSize && b.detected[t.key]) {
+                        totals['enfant'] = (totals['enfant'] || 0) + b.detected[t.key];
+                    }
                 }
             }
             return totals;
@@ -719,8 +424,9 @@
             document.getElementById('cardTotalValue').textContent = bookings.length;
             document.getElementById('cardTotalSub').textContent = getDateRangeLabel();
 
-            const totalVelos = ['vtc','vae','ville','route','tandem','siege','charrette','charretteChien','p16','p20','p24','p26']
-                .reduce((s, k) => s + (totals[k] || 0), 0);
+            const totalVelos = getTypes()
+                .filter(t => t.hasKeywords) // types réellement comptés
+                .reduce((s, t) => s + (totals[t.key] || 0), 0);
             document.getElementById('cardVelosValue').textContent = totalVelos;
             document.getElementById('cardVelosSub').textContent = `${bookings.length} résa`;
 
@@ -728,10 +434,10 @@
             document.getElementById('detailBadge').textContent = bookings.length;
             document.getElementById('bookingsBadge').textContent = bookings.length;
 
-            // Détail par catégorie
+            // Détail par catégorie (bike_types)
             const catEl = document.getElementById('categories');
             catEl.innerHTML = '';
-            for (const k of ORDER) {
+            for (const t of getTypes()) {
                 const row = document.createElement('div');
                 row.className = 'cat-row';
                 const left = document.createElement('div');
@@ -739,25 +445,25 @@
 
                 const dot = document.createElement('div');
                 dot.className = 'cat-dot';
-                dot.style.background = COLORS[k] || '#94a3b8';
+                dot.style.background = '#3b82f6'; // couleur fixe ou dépendante du key
 
                 const name = document.createElement('div');
                 name.className = 'cat-name';
-                name.textContent = LABELS[k] || k;
-                const stockTotal = getStockFor(k);
+                name.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
+                const stockTotal = getStockFor(t.key);
                 if (stockTotal !== null) {
-                    const stock = document.createElement('span');
-                    stock.className = 'stock';
-                    stock.textContent = `/ ${stockTotal}`;
-                    name.appendChild(stock);
+                    const sp = document.createElement('span');
+                    sp.className = 'stock';
+                    sp.textContent = `/ ${stockTotal}`;
+                    name.appendChild(sp);
                 }
 
                 left.appendChild(dot);
                 left.appendChild(name);
 
                 const countEl = document.createElement('div');
-                countEl.className = k === 'enfant' ? 'cat-count sub' : 'cat-count';
-                countEl.textContent = `${totals[k] || 0}/${stockTotal ?? '–'}`;
+                countEl.className = t.isChildSize ? 'cat-count sub' : 'cat-count';
+                countEl.textContent = `${totals[t.key] || 0}/${stockTotal ?? '–'}`;
 
                 row.appendChild(left);
                 row.appendChild(countEl);
@@ -780,7 +486,6 @@
 
                     const info = document.createElement('div');
 
-                    // Date + heure de début
                     const date = document.createElement('div');
                     date.className = 'booking-date';
                     date.textContent = formatDateWithHour(b.start);
@@ -791,7 +496,6 @@
                     info.appendChild(date);
                     info.appendChild(text);
 
-                    // Date et heure de création de la réservation
                     if (b.created) {
                         const created = document.createElement('div');
                         created.className = 'booking-calendar';
@@ -799,7 +503,6 @@
                         info.appendChild(created);
                     }
 
-                    // Date et heure de dernière modification
                     if (b.lastModified) {
                         const modified = document.createElement('div');
                         modified.className = 'booking-calendar';
@@ -807,7 +510,6 @@
                         info.appendChild(modified);
                     }
 
-                    // Lieu si renseigné
                     if (b.location) {
                         const loc = document.createElement('div');
                         loc.className = 'booking-calendar';
@@ -815,7 +517,6 @@
                         info.appendChild(loc);
                     }
 
-                    // Calendrier d'origine
                     if (b.calendar) {
                         const cal = document.createElement('div');
                         cal.className = 'booking-calendar';
@@ -838,6 +539,10 @@
             }
         }
 
+        // ============================================================
+        // CHARGE LES DONNÉES (API + stock)
+        // ============================================================
+
         async function loadData() {
             document.getElementById('updatedText').textContent = 'Chargement...';
             document.getElementById('errorBox').classList.add('hidden');
@@ -858,7 +563,85 @@
             }
         }
 
-        // Onglets
+        // ============================================================
+        // ÉDITEUR DE STOCK (upsert fleet_history)
+        // ============================================================
+
+        function initResaSupabase() {
+            if (window.supabase && !_supabase) {
+                try {
+                    _supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+                    console.log('✅ Supabase connecté (resa.html)');
+                } catch (e) {
+                    console.error('❌ Erreur Supabase:', e);
+                }
+            }
+        }
+
+        function openStockEditor() {
+            if (!_supabase) {
+                document.getElementById('errorBox').textContent = 'Supabase non connecté : impossible de modifier le stock.';
+                document.getElementById('errorBox').classList.remove('hidden');
+                return;
+            }
+            const fields = document.getElementById('stockEditorFields');
+            fields.innerHTML = '';
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+            document.getElementById('stockDateBadge').textContent = todayStr;
+
+            // Tous les types actifs (avec un fleetKey) apparaissent dans l'éditeur
+            const stock = state.data?.stock || {};
+            for (const t of getTypes()) {
+                const row = document.createElement('div');
+                row.className = 'stock-field-row';
+                const lbl = document.createElement('div');
+                lbl.className = 'stock-field-label';
+                lbl.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = 0;
+                input.className = 'stock-field-input';
+                input.dataset.key = t.fleetKey || t.key;
+                input.value = stock[t.fleetKey || t.key] ?? 0;
+                row.appendChild(lbl);
+                row.appendChild(input);
+                fields.appendChild(row);
+            }
+
+            document.getElementById('stockEditor').classList.remove('hidden');
+            document.getElementById('stockEditor').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function saveStock() {
+            const inputs = document.querySelectorAll('.stock-field-input');
+            const totals = {};
+            inputs.forEach(inp => {
+                totals[inp.dataset.key] = parseInt(inp.value, 10) || 0;
+            });
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+            try {
+                const { error } = await _supabase
+                    .from('fleet_history')
+                    .upsert({ date: todayStr, totals, updated_at: new Date().toISOString() }, { onConflict: 'date' });
+                if (error) throw error;
+                closeStockEditor();
+                loadData(); // recharge pour mettre à jour les X/Y
+            } catch (e) {
+                document.getElementById('errorBox').textContent = 'Erreur enregistrement stock : ' + e.message;
+                document.getElementById('errorBox').classList.remove('hidden');
+            }
+        }
+
+        function closeStockEditor() {
+            document.getElementById('stockEditor').classList.add('hidden');
+        }
+
+        // ============================================================
+        // ÉVÉNEMENTS / DÉMARRAGE
+        // ============================================================
+
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -868,14 +651,11 @@
             });
         });
 
-        // Rechargement automatique toutes les 5 minutes (onglet actif)
         setInterval(() => {
             if (!document.hidden) loadData();
         }, 5 * 60 * 1000);
 
-        // Démarrage : initialise Supabase puis charge le stock du jour
         initResaSupabase();
-        loadFleet();
         loadData();
     </script>
 </body>

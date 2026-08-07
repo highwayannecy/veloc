@@ -1,90 +1,146 @@
 /**
  * API Vercel — Comptage des réservations depuis un ou plusieurs calendriers iCloud publics
  *
- * Récupère le(s) calendrier(s) public(s) iCloud (fichiers ICS) et applique la même
- * logique regex que le script booking_count.js.
+ * 🔗 LIEN AUTOMATIQUE ENTRE LES 3 SOURCES
+ *   - bike_types   : SOURCE UNIQUE (mots-clés, label, clé flotte, type enfant...)
+ *   - CALENDAR     : textes de réservation parsés selon les match_keywords de bike_types
+ *   - fleet_history: stock lu par fleet_key (et modifiable depuis resa.html)
  *
- * Variable d'environnement requise (Vercel → Settings → Environment Variables) :
- *   CALENDAR_URLS = liens publics des calendriers iCloud, séparés par des virgules
- *                   ou des points-virgules
- *                   (ex: webcal://p01-caldav.icloud.com/published/AAA;webcal://p01-caldav.icloud.com/published/BBB)
- *   CALENDAR_URL  = (rétro-compatible) lien unique d'un seul calendrier
+ * Variables d'environnement requises (Vercel → Settings → Environment Variables) :
+ *   CALENDAR_URLS      = liens publics des calendriers iCloud, séparés par ; ou ,
+ *                        (ex: webcal://p01-caldav.icloud.com/published/AAA;webcal://p01-caldav.icloud.com/published/BBB)
+ *   CALENDAR_URL       = (rétro-compatible) lien unique d'un seul calendrier
+ *   SUPABASE_URL       = URL du projet Supabase (ex: https://xxxx.supabase.co)
+ *   SUPABASE_ANON_KEY  = clé anon publique Supabase
  *
  * Déploiement : ce fichier dans le dossier /api est automatiquement
  * détecté par Vercel comme une Serverless Function.
  */
 
+// ============================================================
+// 1. HELPERS GÉNÉRAUX
+// ============================================================
+
 /**
- * Extrait le nombre associé à un mot-clé dans un texte.
- * Si aucun nombre trouvé, retourne 1 (implicite : "1 vtc" = "vtc").
+ * Requête REST simple vers Supabase (sans SDK, compatible API Vercel).
+ */
+async function supabaseFetch(path, query = {}) {
+    const url = process.env.SUPABASE_URL;
+    const anonKey = process.env.SUPABASE_ANON_KEY;
+    if (!url || !anonKey) {
+        throw new Error('SUPABASE_URL / SUPABASE_ANON_KEY non configurés');
+    }
+    const params = new URLSearchParams(query);
+    const qs = params.toString();
+    const response = await fetch(`${url}/rest/v1/${path}${qs ? '?' + qs : ''}`, {
+        headers: {
+            'apikey': anonKey,
+            'Authorization': `Bearer ${anonKey}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`Supabase ${path} (HTTP ${response.status})`);
+    }
+    return response.json();
+}
+
+/**
+ * Échappe les caractères spéciaux regex d'une chaîne.
+ */
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Construit le pattern regex pour un type à partir de ses mots-clés.
+ *
+ * @param {Object} bt - Ligne bike_types
+ * @returns {RegExp|null}
+ */
+function buildPattern(bt) {
+    const keywords = (bt.match_keywords || []).filter(k => k && k.trim());
+    if (keywords.length === 0) return null;
+
+    // Alternance des mots-clés échappés, du plus long au plus court
+    const alts = keywords
+        .map(k => escapeRegex(k.trim().toLowerCase()))
+        .sort((a, b) => b.length - a.length)
+        .join('|');
+
+    if (bt.require_number) {
+        // "2 enfant", "1 vélo enfant" → nombre obligatoire avant le mot-clé
+        return new RegExp(`(\\d+)\\s*(?:${alts})`, 'gi');
+    }
+
+    // Nombre optionnel avant le mot-clé :
+    //   "2 26p"   → count = 2
+    //   "26p"     → count = 1
+    //   "2vae"    → count = 2
+    // Le groupe 1 = nombre (ou absent → 1), le groupe 2 = mot-clé.
+    // L'alternative (?:^|[^\w]) + (?=$|[^\d]) évite de matcher
+    // dans un mot plus long ("126p" ne matche pas "26p" quand il
+    // est précédé d'un chiffre sans espace séparateur).
+    return new RegExp(`(?:^|[^\\w])(?:(\\d+)\\s*)?(${alts})(?=$|[^\\d])`, 'gi');
+}
+
+/**
+ * Construit la liste des patterns + infos d'affichage depuis bike_types.
+ */
+function buildTypes(bikeTypes) {
+    return (bikeTypes || [])
+        .filter(bt => bt.is_active !== false)
+        .map(bt => ({
+            key: bt.key,
+            label: bt.label || bt.key,
+            icon: bt.icon || '🚲',
+            fleetKey: bt.fleet_key || bt.key,
+            isChildSize: !!bt.is_child_size,
+            sortOrder: bt.sort_order || 0,
+            hasKeywords: (bt.match_keywords || []).length > 0,
+            regex: buildPattern(bt), // null si aucun mot-clé (interne uniquement, non sérialisé)
+            requireNumber: !!bt.require_number,
+        }))
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+
+/**
+ * Extrait les compteurs d'un texte de réservation.
  */
 function extractCount(text, regex) {
+    if (!regex) return 0;
     let match;
     let total = 0;
-    const re = new RegExp(regex.source, 'gi');
-    while ((match = re.exec(text)) !== null) {
+    // reset lastIndex à chaque appel
+    regex.lastIndex = 0;
+    while ((match = regex.exec(text)) !== null) {
         const count = match[1] !== undefined && match[1] !== '' ? parseInt(match[1], 10) : 1;
         total += count;
-        if (match.index === re.lastIndex) re.lastIndex++;
+        if (match.index === regex.lastIndex) regex.lastIndex++;
     }
     return total;
 }
 
-// Patterns identiques à booking_count.js
-const PATTERNS = [
-    { key: 'charretteChien', regex: /(\d+)\s*(?:charrettes?\s+chien|remorque\s+chien)/i },
-    { key: 'charrette',      regex: /(\d+)\s*(?:ch[ae]rettes?|remorque|carette)(?!\s+chien)/i },
-    { key: 'siege',          regex: /(\d+)\s*(?:si[eè]ge(?:\s+(?:enfant|b[eé]b[eé]))?|b[eé]b[eé]\s*(?:si[eè]ge)?)/i },
-    { key: 'enfant',         regex: /(\d+)\s*(?:v[eé]lo\s+(?:enfant|junior)|enfant|junior)/i },
-    { key: 'tandem',         regex: /(\d+)\s*tandem/i },
-    { key: 'vtc',            regex: /(\d+)\s*(?:vtc|classique|m[eé]canique)/i },
-    { key: 'vae',            regex: /(\d+)\s*(?:vae|[eé]lectrique|ebike|elec)/i },
-    { key: 'ville',          regex: /(\d+)\s*ville/i },
-    { key: 'route',          regex: /(\d+)\s*route/i },
-    { key: 'p16',            regex: /(?:\b|[^\d])(?:(\d+)\s*)?16\s*(?:p|pouces)\b/i },
-    { key: 'p20',            regex: /(?:\b|[^\d])(?:(\d+)\s*)?20\s*(?:p|pouces)\b/i },
-    { key: 'p24',            regex: /(?:\b|[^\d])(?:(\d+)\s*)?24\s*(?:p|pouces)\b/i },
-    { key: 'p26',            regex: /(?:\b|[^\d])(?:(\d+)\s*)?26\s*(?:p|pouces)\b/i },
-];
-
-// Stock total de vélos (à ajuster si besoin)
-const STOCK = {
-    vtc: 76,
-    vae: 65,
-    ville: 0,
-    route: 0,
-    tandem: 1,
-    siege: 6,
-    charrette: 0,
-    charretteChien: 0,
-    p16: 1,
-    p20: 2,
-    p24: 2,
-    p26: 2,
-    enfant: 7,
-};
-
 /**
- * Analyse un texte de réservation et retourne les compteurs locaux détectés.
+ * Analyse un texte de réservation et retourne les compteurs détectés.
+ * @returns {Object} { key: count }
  */
-function processBookingText(text) {
-    const local = {};
-    for (const pattern of PATTERNS) {
-        const count = extractCount(text, pattern.regex);
-        if (count > 0) {
-            local[pattern.key] = (local[pattern.key] || 0) + count;
-        }
+function detectText(text, types) {
+    const detected = {};
+    for (const t of types) {
+        if (!t.regex) continue;
+        const count = extractCount(text, t.regex);
+        if (count > 0) detected[t.key] = count;
     }
-    return local;
+    return detected;
 }
+
+// ============================================================
+// 2. PARSING ICS
+// ============================================================
 
 /**
  * Parse une date ICS (DTSTART) en objet Date JS.
- * Formats gérés :
- *   - 20260807               (journée entière)
- *   - 20260807T090000        (heure locale)
- *   - 20260807T090000Z       (heure UTC)
- *   - ;TZID=...:20260807T090000
  */
 function parseICSDate(str) {
     if (!str) return null;
@@ -111,8 +167,7 @@ function parseICSDate(str) {
 }
 
 /**
- * Extrait un champ ICS simple (une seule ligne).
- * Retourne la valeur nettoyée, ou null si absent.
+ * Extrait un champ ICS simple.
  */
 function getICSField(block, fieldName) {
     const match = block.match(new RegExp(`^${fieldName}[^:]*:(.*)$`, 'm'));
@@ -122,12 +177,9 @@ function getICSField(block, fieldName) {
 }
 
 /**
- * Parse le contenu ICS et retourne la liste des événements non annulés.
- * Champs extraits : summary, start, end, created (date de création),
- * lastModified, uid, location, description, status.
+ * Parse le contenu ICS.
  */
 function parseICS(ics) {
-    // Dépliage des lignes longues (continuations débutant par espace)
     const unfolded = ics.replace(/\r?\n[ \t]/g, '');
     const events = [];
     const blocks = unfolded.split('BEGIN:VEVENT');
@@ -161,55 +213,64 @@ function parseICS(ics) {
     return events;
 }
 
-/**
- * Calcule les totaux globaux. Les vélos pouces (16p/20p/24p/26p)
- * sont aussi comptés dans enfant, comme dans le script d'origine.
- */
-function computeTotals(bookings) {
-    const totals = {};
-    for (const k of Object.keys(STOCK)) totals[k] = 0;
-    for (const b of bookings) {
-        for (const k in b.detected) {
-            if (totals[k] !== undefined) totals[k] += b.detected[k];
-            if (['p16', 'p20', 'p24', 'p26'].includes(k)) totals.enfant += b.detected[k];
-        }
-    }
-    return totals;
-}
+// ============================================================
+// 3. FONCTION PRINCIPALE
+// ============================================================
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'no-store');
 
-    // Plusieurs calendriers possibles : CALENDAR_URLS séparés par des virgules
-    // ou des points-virgules (rétro-compatible avec CALENDAR_URL seul)
+    // ---------- CALENDRIERS ----------
     const calendarUrlsRaw = process.env.CALENDAR_URLS || process.env.CALENDAR_URL;
     if (!calendarUrlsRaw) {
         return res.status(500).json({
             error: 'CALENDAR_URLS non configuré',
-            hint: "Ajoutez les liens publics des calendriers iCloud (séparés par des virgules) dans les variables d'environnement Vercel. Voir INSTRUCTIONS_MOBILE.md"
+            hint: "Ajoutez les liens publics des calendriers iCloud (séparés par ; ou ,) dans les variables d'environnement Vercel."
         });
     }
-
-    // Découpe par virgules OU points-virgules, supprime les espaces et les entrées vides
     const calendarUrls = calendarUrlsRaw
         .split(/[,;]/)
         .map(u => u.trim())
         .filter(u => u.length > 0);
 
     if (calendarUrls.length === 0) {
-        return res.status(500).json({
-            error: 'CALENDAR_URLS vide',
-            hint: 'Aucun lien de calendrier valide trouvé. Vérifiez la variable d\'environnement CALENDAR_URLS.'
-        });
+        return res.status(500).json({ error: 'CALENDAR_URLS vide' });
     }
 
     try {
-        const events = [];
+        // ---------- BIKE_TYPES : SOURCE UNIQUE ----------
+        // Les regex sont générées depuis bike_types.match_keywords
+        let bikeTypes = [];
+        try {
+            bikeTypes = await supabaseFetch('bike_types', {
+                select: 'key,label,icon,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
+                order: 'sort_order.asc',
+            });
+        } catch (supaErr) {
+            // Si Supabase n'est pas configuré, on fonctionne en mode dégradé
+            console.warn('⚠️ bike_types non chargés:', supaErr.message);
+        }
 
-        // Télécharge chaque calendrier et fusionne les événements
+        const types = buildTypes(bikeTypes);
+
+        // ---------- STOCK DEPUIS fleet_history ----------
+        let stock = null;
+        try {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const rows = await supabaseFetch('fleet_history', {
+                select: 'date,totals',
+                date: `eq.${todayStr}`,
+                limit: '1',
+            });
+            if (rows && rows.length > 0) stock = rows[0].totals || null;
+        } catch (supaErr) {
+            console.warn('⚠️ fleet_history non chargé:', supaErr.message);
+        }
+
+        // ---------- TÉLÉCHARGEMENT DES CALENDRIERS ----------
+        const events = [];
         for (const calendarUrl of calendarUrls) {
-            // webcal:// → https:// pour pouvoir télécharger le fichier
             const icsUrl = calendarUrl.replace(/^webcal:\/\//i, 'https://');
             const response = await fetch(icsUrl);
             if (!response.ok) {
@@ -223,6 +284,7 @@ module.exports = async (req, res) => {
             events.push(...parsedEvents);
         }
 
+        // ---------- DÉTECTION PAR TEXTE ----------
         const bookings = events.map(e => ({
             summary: e.summary,
             start: e.startDate ? e.startDate.toISOString() : null,
@@ -234,15 +296,34 @@ module.exports = async (req, res) => {
             description: e.description,
             status: e.status,
             calendar: e.calendar,
-            detected: processBookingText(e.summary.toLowerCase()),
+            detected: detectText(e.summary.toLowerCase(), types),
         }));
+
+        // ---------- TOTAUX ----------
+        function computeTotals(list) {
+            const totals = {};
+            for (const t of types) totals[t.key] = 0;
+            for (const b of list) {
+                for (const k in b.detected) {
+                    if (totals[k] !== undefined) totals[k] += b.detected[k];
+                }
+                // Les vélos pouces et le type "enfant" synthèse :
+                // si enfant = is_child_size, on additionne les enfants au type enfant
+                for (const t of types) {
+                    if (t.isChildSize && b.detected[t.key]) {
+                        totals['enfant'] = (totals['enfant'] || 0) + b.detected[t.key];
+                    }
+                }
+            }
+            return totals;
+        }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const totalsAll = computeTotals(bookings);
         const upcomingBookings = bookings.filter(b => {
-            if (!b.start) return true; // date inconnue → on la compte
+            if (!b.start) return true;
             return new Date(b.start) >= today;
         });
         const totalsUpcoming = computeTotals(upcomingBookings);
@@ -250,7 +331,8 @@ module.exports = async (req, res) => {
         return res.status(200).json({
             generatedAt: new Date().toISOString(),
             eventsCount: events.length,
-            stock: STOCK,
+            types,
+            stock,
             totalsAll,
             totalsUpcoming,
             bookings,
