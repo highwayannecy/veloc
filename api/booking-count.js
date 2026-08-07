@@ -58,19 +58,19 @@ function escapeRegex(str) {
  * Miroir de la table bike_types de SUPABASE_SETUP.sql.
  */
 const DEFAULT_BIKE_TYPES = [
-    { key: 'enfant',         label: 'Enfants (total équipe)', icon: '🧒', match_keywords: [],                 fleet_key: 'enfant',                 is_child_size: false, sort_order: 1 },
-    { key: 'vae',            label: 'VAE',                    icon: '⚡', match_keywords: ['vae','électrique','electrique','ebike','elec'], fleet_key: 'vae', is_child_size: false, sort_order: 2 },
-    { key: 'vtc',            label: 'VTC',                    icon: '🚲', match_keywords: ['vtc','classique','mecanique','mécanique'], fleet_key: 'vtc', is_child_size: false, sort_order: 3 },
-    { key: 'ville',          label: 'Ville',                  icon: '🏙️', match_keywords: ['ville'],           fleet_key: 'ville',                  is_child_size: false, sort_order: 4 },
-    { key: 'route',          label: 'Route',                  icon: '🏁', match_keywords: ['route'],           fleet_key: 'route',                  is_child_size: false, sort_order: 5 },
-    { key: 'tandem',         label: 'Tandem',                 icon: '👫', match_keywords: ['tandem'],          fleet_key: 'tandem',                 is_child_size: false, sort_order: 6 },
-    { key: 'siege',          label: 'Siège bébé',             icon: '🍼', match_keywords: ['siege','siège','siege enfant','siège enfant','siege bebe','siège bébé','bebe','bébé'], fleet_key: 'siege', is_child_size: false, sort_order: 7 },
-    { key: 'charretteChien', label: 'Charrette chien',        icon: '🐕', match_keywords: ['charrette chien','charrettes chien','remorque chien'], fleet_key: 'charretteChien', is_child_size: false, sort_order: 8 },
-    { key: 'charrette',      label: 'Charrette / Remorque',   icon: '🛞', match_keywords: ['charrette','charrettes','charette','carette','remorque'], fleet_key: 'charrette', is_child_size: false, sort_order: 9 },
-    { key: 'enfant-16p',     label: 'Enfant 16p',             icon: '🧒', match_keywords: ['16p','16 pouces','16pouces','16 p'], fleet_key: 'enfant-16p', is_child_size: true, sort_order: 10 },
-    { key: 'enfant-20p',     label: 'Enfant 20p',             icon: '🧒', match_keywords: ['20p','20 pouces','20pouces','20 p'], fleet_key: 'enfant-20p', is_child_size: true, sort_order: 11 },
-    { key: 'enfant-24p',     label: 'Enfant 24p',             icon: '🧒', match_keywords: ['24p','24 pouces','24pouces','24 p'], fleet_key: 'enfant-24p', is_child_size: true, sort_order: 12 },
-    { key: 'enfant-26p',     label: 'Enfant 26p',             icon: '🧒', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
+    { key: 'enfant',         label: 'Enfants (total équipe)', icon: '🧒', description: 'Synthèse automatique : somme des tailles enfants', match_keywords: [], fleet_key: 'enfant', is_child_size: false, sort_order: 14 },
+    { key: 'vae',            label: 'VAE',                    icon: '⚡', description: '', match_keywords: ['vae','électrique','electrique','ebike','elec'], fleet_key: 'vae', is_child_size: false, sort_order: 2 },
+    { key: 'vtc',            label: 'VTC',                    icon: '🚲', description: '', match_keywords: ['vtc','classique','mecanique','mécanique'], fleet_key: 'vtc', is_child_size: false, sort_order: 3 },
+    { key: 'ville',          label: 'Ville',                  icon: '🏙️', description: '', match_keywords: ['ville'], fleet_key: 'ville', is_child_size: false, sort_order: 4 },
+    { key: 'route',          label: 'Route',                  icon: '🏁', description: '', match_keywords: ['route'], fleet_key: 'route', is_child_size: false, sort_order: 5 },
+    { key: 'tandem',         label: 'Tandem',                 icon: '👫', description: '', match_keywords: ['tandem'], fleet_key: 'tandem', is_child_size: false, sort_order: 6 },
+    { key: 'siege',          label: 'Siège bébé',             icon: '🍼', description: '', match_keywords: ['siege','siège','siege enfant','siège enfant','siege bebe','siège bébé','bebe','bébé'], fleet_key: 'siege', is_child_size: false, sort_order: 7 },
+    { key: 'charretteChien', label: 'Charrette chien',        icon: '🐕', description: '', match_keywords: ['charrette chien','charrettes chien','remorque chien'], fleet_key: 'charretteChien', is_child_size: false, sort_order: 8 },
+    { key: 'charrette',      label: 'Charrette / Remorque',   icon: '🛞', description: '', match_keywords: ['charrette','charrettes','charette','carette','remorque'], fleet_key: 'charrette', is_child_size: false, sort_order: 9 },
+    { key: 'enfant-16p',     label: 'Enfant 16p',             icon: '🧒', description: '4 à 6 ans', match_keywords: ['16p','16 pouces','16pouces','16 p'], fleet_key: 'enfant-16p', is_child_size: true, sort_order: 10 },
+    { key: 'enfant-20p',     label: 'Enfant 20p',             icon: '🧒', description: '6 à 8 ans', match_keywords: ['20p','20 pouces','20pouces','20 p'], fleet_key: 'enfant-20p', is_child_size: true, sort_order: 11 },
+    { key: 'enfant-24p',     label: 'Enfant 24p',             icon: '🧒', description: '8 à 10 ans', match_keywords: ['24p','24 pouces','24pouces','24 p'], fleet_key: 'enfant-24p', is_child_size: true, sort_order: 12 },
+    { key: 'enfant-26p',     label: 'Enfant 26p',             icon: '🧒', description: '10 ans et +', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
 ];
 
 /**
@@ -111,18 +111,28 @@ function buildPattern(bt) {
 function buildTypes(bikeTypes) {
     return (bikeTypes || [])
         .filter(bt => bt.is_active !== false)
-        .map(bt => ({
-            key: bt.key,
-            label: bt.label || bt.key,
-            icon: bt.icon || '🚲',
-            fleetKey: bt.fleet_key || bt.key,
-            isChildSize: !!bt.is_child_size,
-            sortOrder: bt.sort_order || 0,
-            hasKeywords: (bt.match_keywords || []).length > 0,
-            regex: buildPattern(bt), // null si aucun mot-clé (interne uniquement, non sérialisé)
-            requireNumber: !!bt.require_number,
-        }))
-        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        .map(bt => {
+            // Fusion avec les valeurs par défaut : descriptions, mots-clés,
+            // fleet_key et ordre si la base n'est pas encore migrée.
+            const def = DEFAULT_BIKE_TYPES.find(d => d.key === bt.key) || {};
+            const keywords = (bt.match_keywords && bt.match_keywords.length > 0)
+                ? bt.match_keywords
+                : (def.match_keywords || []);
+            return {
+                key: bt.key,
+                label: bt.label || bt.key,
+                icon: bt.icon || '🚲',
+                description: (bt.description && bt.description.trim()) || def.description || '',
+                fleetKey: bt.fleet_key || def.fleet_key || bt.key,
+                isChildSize: bt.is_child_size !== undefined ? !!bt.is_child_size : !!def.is_child_size,
+                // "enfant" toujours en dernier quel que soit la base
+                sortOrder: bt.key === 'enfant' ? 999 : (bt.sort_order || def.sort_order || 0),
+                hasKeywords: (keywords || []).length > 0,
+                regex: buildPattern({ ...bt, match_keywords: keywords }),
+                requireNumber: !!bt.require_number,
+            };
+        })
+        .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 /**
@@ -266,7 +276,7 @@ module.exports = async (req, res) => {
         let supabaseAvailable = true;
         try {
             bikeTypes = await supabaseFetch('bike_types', {
-                select: 'key,label,icon,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
+                select: 'key,label,icon,description,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
                 order: 'sort_order.asc',
             });
         } catch (supaErr) {

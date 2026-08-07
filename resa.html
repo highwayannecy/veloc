@@ -42,10 +42,30 @@
 
         .tabs {
             display: flex; gap: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             background: #e2e8f0;
             padding: 6px;
             border-radius: 14px;
+        }
+
+        .tab-dates {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab-date {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: capitalize;
+            text-align: center;
+        }
+
+        .tab-date.active {
+            color: #0052cc;
+            font-weight: 800;
         }
 
         .tab {
@@ -236,6 +256,13 @@
         <button class="tab" data-view="dayAfter">Après-demain</button>
     </div>
 
+    <!-- Dates affichées sous les onglets -->
+    <div class="tab-dates">
+        <span class="tab-date active" id="dateToday">–</span>
+        <span class="tab-date" id="dateTomorrow">–</span>
+        <span class="tab-date" id="dateDayAfter">–</span>
+    </div>
+
     <!-- Cartes de synthèse -->
     <div class="summary-cards">
         <div class="summary-card">
@@ -330,10 +357,16 @@
         }
 
         /**
-         * Retourne la liste des types (depuis bike_types chargés via l'API).
+         * Retourne la liste des types (depuis bike_types chargés via l'API),
+         * triés par sortOrder avec "enfant" toujours en dernier.
          */
         function getTypes() {
-            return state.data?.types || [];
+            const types = state.data?.types || [];
+            return [...types].sort((a, b) => {
+                const sa = a.key === 'enfant' ? 999 : (a.sortOrder || 0);
+                const sb = b.key === 'enfant' ? 999 : (b.sortOrder || 0);
+                return sa - sb;
+            });
         }
 
         /**
@@ -414,11 +447,28 @@
             return totals;
         }
 
+        /**
+         * Met à jour les dates affichées sous les onglets.
+         */
+        function updateTabDates() {
+            const map = { today: 'dateToday', tomorrow: 'dateTomorrow', dayAfter: 'dateDayAfter' };
+            for (const view in map) {
+                const offset = view === 'today' ? 0 : view === 'tomorrow' ? 1 : 2;
+                const d = dateAtMidnight(offset);
+                const el = document.getElementById(map[view]);
+                if (el) {
+                    el.textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+                    el.classList.toggle('active', state.view === view);
+                }
+            }
+        }
+
         function render() {
             if (!state.data) return;
 
             const bookings = getFilteredBookings();
             const totals = computeViewTotals(bookings);
+            updateTabDates();
 
             // Cartes de synthèse
             document.getElementById('cardTotalValue').textContent = bookings.length;
