@@ -38,6 +38,44 @@
             word-break: break-word;
         }
 
+        /* --- AIDE AU NOMMAGE (pour le staff) --- */
+        .naming-tip {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .naming-tip-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0052cc;
+            margin-bottom: 10px;
+        }
+
+        .naming-tip-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .naming-tip-chip {
+            background: #ffffff;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .naming-tip-chip .naming-tip-desc {
+            color: #64748b;
+            font-weight: 500;
+        }
+
         /* --- DATE PICKER --- */
         .date-picker-block {
             text-align: center;
@@ -260,6 +298,12 @@
 
     <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
 
+    <!-- Aide au staff : bien nommer les vélos dans les réservations -->
+    <div class="naming-tip" id="namingTip">
+        <div class="naming-tip-title">✍️ Pour bien nommer vos réservations</div>
+        <div class="naming-tip-chips" id="namingTipContent"></div>
+    </div>
+
     <!-- Détail par catégorie (généré depuis bike_types) -->
     <div class="panel">
         <div class="panel-title">
@@ -474,6 +518,25 @@
             // Badges
             document.getElementById('detailBadge').textContent = bookings.length;
             document.getElementById('bookingsBadge').textContent = bookings.length;
+
+            // Aide au nommage : générée depuis bike_types (description, icône, label)
+            const tipContent = document.getElementById('namingTipContent');
+            if (tipContent) {
+                tipContent.innerHTML = '';
+                getTypes().forEach(t => {
+                    if (!t.hasKeywords) return; // ignore les synthèses (enfant total)
+                    const chip = document.createElement('span');
+                    chip.className = 'naming-tip-chip';
+                    chip.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
+                    if (t.description) {
+                        const desc = document.createElement('span');
+                        desc.className = 'naming-tip-desc';
+                        desc.textContent = ' — ' + t.description;
+                        chip.appendChild(desc);
+                    }
+                    tipContent.appendChild(chip);
+                });
+            }
 
             // Détail par catégorie (bike_types)
             const catEl = document.getElementById('categories');
