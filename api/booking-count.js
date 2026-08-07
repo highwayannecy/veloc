@@ -53,6 +53,27 @@ function escapeRegex(str) {
 }
 
 /**
+ * Configuration de SECOURS utilisée quand Supabase n'est pas disponible
+ * (variables d'env absentes, colonnes manquantes, etc.).
+ * Miroir de la table bike_types de SUPABASE_SETUP.sql.
+ */
+const DEFAULT_BIKE_TYPES = [
+    { key: 'enfant',         label: 'Enfants (total équipe)', icon: '🧒', match_keywords: [],                 fleet_key: 'enfant',                 is_child_size: false, sort_order: 1 },
+    { key: 'vae',            label: 'VAE',                    icon: '⚡', match_keywords: ['vae','électrique','electrique','ebike','elec'], fleet_key: 'vae', is_child_size: false, sort_order: 2 },
+    { key: 'vtc',            label: 'VTC',                    icon: '🚲', match_keywords: ['vtc','classique','mecanique','mécanique'], fleet_key: 'vtc', is_child_size: false, sort_order: 3 },
+    { key: 'ville',          label: 'Ville',                  icon: '🏙️', match_keywords: ['ville'],           fleet_key: 'ville',                  is_child_size: false, sort_order: 4 },
+    { key: 'route',          label: 'Route',                  icon: '🏁', match_keywords: ['route'],           fleet_key: 'route',                  is_child_size: false, sort_order: 5 },
+    { key: 'tandem',         label: 'Tandem',                 icon: '👫', match_keywords: ['tandem'],          fleet_key: 'tandem',                 is_child_size: false, sort_order: 6 },
+    { key: 'siege',          label: 'Siège bébé',             icon: '🍼', match_keywords: ['siege','siège','siege enfant','siège enfant','siege bebe','siège bébé','bebe','bébé'], fleet_key: 'siege', is_child_size: false, sort_order: 7 },
+    { key: 'charretteChien', label: 'Charrette chien',        icon: '🐕', match_keywords: ['charrette chien','charrettes chien','remorque chien'], fleet_key: 'charretteChien', is_child_size: false, sort_order: 8 },
+    { key: 'charrette',      label: 'Charrette / Remorque',   icon: '🛞', match_keywords: ['charrette','charrettes','charette','carette','remorque'], fleet_key: 'charrette', is_child_size: false, sort_order: 9 },
+    { key: 'enfant-16p',     label: 'Enfant 16p',             icon: '🧒', match_keywords: ['16p','16 pouces','16pouces','16 p'], fleet_key: 'enfant-16p', is_child_size: true, sort_order: 10 },
+    { key: 'enfant-20p',     label: 'Enfant 20p',             icon: '🧒', match_keywords: ['20p','20 pouces','20pouces','20 p'], fleet_key: 'enfant-20p', is_child_size: true, sort_order: 11 },
+    { key: 'enfant-24p',     label: 'Enfant 24p',             icon: '🧒', match_keywords: ['24p','24 pouces','24pouces','24 p'], fleet_key: 'enfant-24p', is_child_size: true, sort_order: 12 },
+    { key: 'enfant-26p',     label: 'Enfant 26p',             icon: '🧒', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
+];
+
+/**
  * Construit le pattern regex pour un type à partir de ses mots-clés.
  *
  * @param {Object} bt - Ligne bike_types
@@ -242,6 +263,7 @@ module.exports = async (req, res) => {
         // ---------- BIKE_TYPES : SOURCE UNIQUE ----------
         // Les regex sont générées depuis bike_types.match_keywords
         let bikeTypes = [];
+        let supabaseAvailable = true;
         try {
             bikeTypes = await supabaseFetch('bike_types', {
                 select: 'key,label,icon,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
@@ -250,6 +272,17 @@ module.exports = async (req, res) => {
         } catch (supaErr) {
             // Si Supabase n'est pas configuré, on fonctionne en mode dégradé
             console.warn('⚠️ bike_types non chargés:', supaErr.message);
+            supabaseAvailable = false;
+        }
+
+        // Fallback : si Supabase indisponible OU si la table n'a pas
+        // les nouvelles colonnes (aucun mot-clé chargé), on utilise la
+        // configuration par défaut pour que la détection fonctionne.
+        const hasAnyKeyword = (bikeTypes || []).some(bt => (bt.match_keywords || []).length > 0);
+        if (!supabaseAvailable || !bikeTypes || bikeTypes.length === 0 || !hasAnyKeyword) {
+            if (!supabaseAvailable) console.warn('⚠️ Utilisation des types par défaut (Supabase indisponible)');
+            else if (!hasAnyKeyword) console.warn('⚠️ Utilisation des types par défaut (colonnes match_keywords manquantes)');
+            bikeTypes = DEFAULT_BIKE_TYPES;
         }
 
         const types = buildTypes(bikeTypes);
