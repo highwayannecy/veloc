@@ -22,11 +22,21 @@
 // ============================================================
 
 /**
+ * Clés Supabase de secours (clés publiques "anon", identiques à supabase.js).
+ * Utilisées si les variables d'environnement Vercel ne sont pas configurées,
+ * afin que l'API puisse TOUJOURS lire la table réelle bike_types.
+ */
+const SUPABASE_FALLBACK = {
+    url: 'https://kltvxgupcfscdzjorxtu.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdHZ4Z3VwY2ZzY2R6am9yeHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDEyNDEsImV4cCI6MjA5OTc3NzI0MX0.V4VT_xHbquzA-IeL3YOFEJYVrrcnaV9QmI-dRSiFHb8'
+};
+
+/**
  * Requête REST simple vers Supabase (sans SDK, compatible API Vercel).
  */
 async function supabaseFetch(path, query = {}) {
-    const url = process.env.SUPABASE_URL;
-    const anonKey = process.env.SUPABASE_ANON_KEY;
+    const url = process.env.SUPABASE_URL || SUPABASE_FALLBACK.url;
+    const anonKey = process.env.SUPABASE_ANON_KEY || SUPABASE_FALLBACK.anonKey;
     if (!url || !anonKey) {
         throw new Error('SUPABASE_URL / SUPABASE_ANON_KEY non configurés');
     }
@@ -389,6 +399,10 @@ module.exports = async (req, res) => {
             totalsAll,
             totalsUpcoming,
             bookings,
+            // DIAGNOSTIC : données brutes reçues de la table bike_types.
+            // Ouvre /api/booking-count pour comparer les descriptions réelles
+            // de la BDD (bikeTypesRaw) avec celles transformées (types).
+            bikeTypesRaw: bikeTypes,
         });
     } catch (err) {
         return res.status(500).json({ error: err.message });
