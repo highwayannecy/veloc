@@ -38,49 +38,39 @@
             word-break: break-word;
         }
 
-        .tabs {
-            display: flex; gap: 8px;
-            margin-bottom: 12px;
-            background: #e2e8f0;
-            padding: 6px;
-            border-radius: 14px;
+        /* --- DATE PICKER --- */
+        .date-picker-block {
+            text-align: center;
+            margin-bottom: 24px;
         }
 
-        .tab-dates {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .tab-date {
-            flex: 1;
+        .date-picker-block .selected-date-label {
             font-size: 13px;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: capitalize;
-            text-align: center;
-        }
-
-        .tab-date.active {
-            color: #0052cc;
-            font-weight: 800;
-        }
-
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 700;
-            background: transparent;
             color: #64748b;
-            cursor: pointer;
-            transition: all 0.2s;
+            margin-bottom: 8px;
+            text-transform: capitalize;
         }
 
-        .tab.active { background: #ffffff; color: #0052cc; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        input[type="date"] {
+            font-family: inherit;
+            font-size: 17px;
+            font-weight: 700;
+            color: #1e293b;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            outline: none;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        input[type="date"]:focus {
+            border-color: #0052cc;
+            background: #eff6ff;
+        }
 
         .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
 
@@ -185,7 +175,7 @@
         .refresh-btn {
             display: block;
             width: 100%;
-            margin-top: 16px;
+            margin: 16px 0;
             padding: 16px;
             border: none;
             border-radius: 14px;
@@ -248,17 +238,10 @@
 
     <div id="errorBox" class="error-box hidden"></div>
 
-    <div class="tabs">
-        <button class="tab active" data-view="today">Aujourd'hui</button>
-        <button class="tab" data-view="tomorrow">Demain</button>
-        <button class="tab" data-view="dayAfter">Après-demain</button>
-    </div>
-
-    <!-- Dates affichées sous les onglets -->
-    <div class="tab-dates">
-        <span class="tab-date active" id="dateToday">–</span>
-        <span class="tab-date" id="dateTomorrow">–</span>
-        <span class="tab-date" id="dateDayAfter">–</span>
+    <!-- DATE PICKER : sélection libre du jour -->
+    <div class="date-picker-block">
+        <div class="selected-date-label" id="selectedDateLabel">–</div>
+        <input type="date" id="datePicker">
     </div>
 
     <!-- Cartes de synthèse -->
@@ -274,6 +257,8 @@
             <div class="sub" id="cardVelosSub"></div>
         </div>
     </div>
+
+    <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
 
     <!-- Détail par catégorie (généré depuis bike_types) -->
     <div class="panel">
@@ -305,8 +290,6 @@
         <div id="bookingsList"></div>
     </div>
 
-    <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
-
     <div class="footer-note">
         Types de vélos, mots-clés et stock sont gérés dans Supabase (bike_types / fleet_history).<br>
         Données issues du calendrier partagé iCloud.
@@ -327,7 +310,8 @@
         let _supabase = null;
         let state = {
             data: null,
-            view: 'today',
+            selectedDate: null, // string 'YYYY-MM-DD' choisie dans le date picker
+            initialized: false,
         };
 
         // ============================================================
@@ -392,36 +376,61 @@
         }
 
         // ============================================================
-        // FILTRES PAR JOUR (J / J+1 / J+2)
+        // DATE PICKER : sélection libre du jour
         // ============================================================
 
-        function dateAtMidnight(offsetDays) {
+        function todayStr() {
             const now = new Date();
-            return new Date(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays);
+            return now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0');
         }
 
-        function isSameDay(iso, offsetDays) {
-            if (!iso) return false;
-            const d = new Date(iso);
-            const target = dateAtMidnight(offsetDays);
-            return d.getFullYear() === target.getFullYear() &&
-                   d.getMonth() === target.getMonth() &&
-                   d.getDate() === target.getDate();
+        /**
+         * Renvoie l'objet Date local correspondant à la date sélectionnée.
+         */
+        function selectedDateObj() {
+            if (!state.selectedDate) return null;
+            const [y, m, d] = state.selectedDate.split('-').map(Number);
+            return new Date(y, m - 1, d);
         }
 
+        /**
+         * Filtre les réservations du jour exact sélectionné.
+         */
         function getFilteredBookings() {
-            if (!state.data) return [];
-            if (state.view === 'today') return state.data.bookings.filter(b => isSameDay(b.start, 0));
-            if (state.view === 'tomorrow') return state.data.bookings.filter(b => isSameDay(b.start, 1));
-            if (state.view === 'dayAfter') return state.data.bookings.filter(b => isSameDay(b.start, 2));
-            return [];
+            if (!state.data || !state.selectedDate) return [];
+            const target = selectedDateObj();
+            if (!target) return [];
+            return state.data.bookings.filter(b => {
+                if (!b.start) return false;
+                const d = new Date(b.start);
+                return d.getFullYear() === target.getFullYear() &&
+                       d.getMonth() === target.getMonth() &&
+                       d.getDate() === target.getDate();
+            });
         }
 
         function getDateRangeLabel() {
-            if (state.view === 'today') return "Aujourd'hui";
-            if (state.view === 'tomorrow') return 'Demain';
-            if (state.view === 'dayAfter') return 'Après-demain';
-            return '';
+            return state.selectedDate || '';
+        }
+
+        /**
+         * Met à jour le label au-dessus du date picker.
+         */
+        function updateSelectedDateLabel() {
+            const el = document.getElementById('selectedDateLabel');
+            if (!el) return;
+            const d = selectedDateObj();
+            if (!d) {
+                el.textContent = 'Sélectionnez une date';
+                return;
+            }
+            if (state.selectedDate === todayStr()) {
+                el.textContent = "Aujourd'hui · " + d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            } else {
+                el.textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            }
         }
 
         // ============================================================
@@ -445,28 +454,12 @@
             return totals;
         }
 
-        /**
-         * Met à jour les dates affichées sous les onglets.
-         */
-        function updateTabDates() {
-            const map = { today: 'dateToday', tomorrow: 'dateTomorrow', dayAfter: 'dateDayAfter' };
-            for (const view in map) {
-                const offset = view === 'today' ? 0 : view === 'tomorrow' ? 1 : 2;
-                const d = dateAtMidnight(offset);
-                const el = document.getElementById(map[view]);
-                if (el) {
-                    el.textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                    el.classList.toggle('active', state.view === view);
-                }
-            }
-        }
-
         function render() {
             if (!state.data) return;
 
             const bookings = getFilteredBookings();
             const totals = computeViewTotals(bookings);
-            updateTabDates();
+            updateSelectedDateLabel();
 
             // Cartes de synthèse
             document.getElementById('cardTotalValue').textContent = bookings.length;
@@ -605,6 +598,12 @@
                     throw new Error(err.error || `Erreur HTTP ${resp.status}`);
                 }
                 state.data = await resp.json();
+                // Initialisation : sélectionne aujourd'hui au premier chargement
+                if (!state.initialized) {
+                    state.selectedDate = todayStr();
+                    state.initialized = true;
+                    document.getElementById('datePicker').value = state.selectedDate;
+                }
                 document.getElementById('updatedText').textContent =
                     `Mis à jour le ${new Date(state.data.generatedAt).toLocaleString('fr-FR')}`;
                 // Si l'API n'a pas pu charger le stock, on essaie côté client
@@ -637,7 +636,7 @@
 
             const candidates = [
                 new Date().toISOString().slice(0, 10),          // date UTC
-                dateAtMidnight(0).toISOString().slice(0, 10),   // date locale
+                todayStr(),                                     // date locale
             ];
             const uniqueCandidates = [...new Set(candidates)];
 
@@ -684,8 +683,9 @@
             const fields = document.getElementById('stockEditorFields');
             fields.innerHTML = '';
 
-            const todayStr = new Date().toISOString().slice(0, 10);
-            document.getElementById('stockDateBadge').textContent = todayStr;
+            // Modifie le stock de la date sélectionnée dans le date picker
+            const stockDate = state.selectedDate || todayStr();
+            document.getElementById('stockDateBadge').textContent = stockDate;
 
             // Tous les types actifs (avec un fleetKey) apparaissent dans l'éditeur
             const stock = state.data?.stock || {};
@@ -717,11 +717,11 @@
                 totals[inp.dataset.key] = parseInt(inp.value, 10) || 0;
             });
 
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const stockDate = state.selectedDate || todayStr();
             try {
                 const { error } = await _supabase
                     .from('fleet_history')
-                    .upsert({ date: todayStr, totals, updated_at: new Date().toISOString() }, { onConflict: 'date' });
+                    .upsert({ date: stockDate, totals, updated_at: new Date().toISOString() }, { onConflict: 'date' });
                 if (error) throw error;
                 closeStockEditor();
                 loadData(); // recharge pour mettre à jour les X/Y
@@ -739,13 +739,10 @@
         // ÉVÉNEMENTS / DÉMARRAGE
         // ============================================================
 
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                state.view = tab.dataset.view;
-                render();
-            });
+        // Date picker : changement de date
+        document.getElementById('datePicker').addEventListener('change', (e) => {
+            state.selectedDate = e.target.value || null;
+            render();
         });
 
         setInterval(() => {
