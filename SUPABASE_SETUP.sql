@@ -102,6 +102,28 @@ CREATE POLICY "Accès complet historique flotte" ON fleet_history FOR ALL TO ano
 CREATE POLICY "Accès complet types vélos" ON bike_types FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- ============================================================
+-- REALTIME : active la réplication temps réel pour les abonnements
+-- postgres_changes (admin.js, resa.html s'abonnent déjà)
+-- ============================================================
+-- ⚠️ Si la publication n'existe pas (très rare) :
+--    CREATE PUBLICATION supabase_realtime;
+-- ⚠️ Si une table est déjà dans la publication, la commande
+--    renvoie une erreur "already member" : la table est déjà activée.
+ALTER PUBLICATION supabase_realtime ADD TABLE reservations;
+ALTER PUBLICATION supabase_realtime ADD TABLE reservation_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE fleet_history;
+ALTER PUBLICATION supabase_realtime ADD TABLE bike_types;
+
+-- ============================================================
+-- OPTIONNEL : recevoir les lignes complètes (anciennes + nouvelles)
+-- sur UPDATE/DELETE dans les événements temps réel.
+-- Défaut = seuls les clés primaires sont envoyées sur UPDATE.
+-- ============================================================
+-- ALTER TABLE reservations REPLICA IDENTITY FULL;
+-- ALTER TABLE reservation_items REPLICA IDENTITY FULL;
+-- ALTER TABLE fleet_history REPLICA IDENTITY FULL;
+
+-- ============================================================
 -- MISE À JOUR D'UNE BASE EXISTANTE
 -- Si vos tables existent déjà, exécutez UNIQUEMENT ce bloc :
 -- ============================================================
@@ -126,23 +148,30 @@ CREATE POLICY "Accès complet types vélos" ON bike_types FOR ALL TO anon USING 
 --     updated_at = NOW()
 -- WHERE date = TO_CHAR(NOW(), 'YYYY-MM-DD');
 
+-- Activer le Realtime sur une base EXISTANTE :
+-- ALTER PUBLICATION supabase_realtime ADD TABLE reservations;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE reservation_items;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE fleet_history;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE bike_types;
+-- (Si "already member" → la table est déjà activée, aucune action)
+
 -- ============================================================
 -- Données de démo
 -- ============================================================
-INSERT INTO reservations (client_name, client_phone, start_date, is_long_duration, duration_days)
-VALUES
-    ('Jean', '0612345678', NOW() + INTERVAL '1 day' + INTERVAL '9 hours', FALSE, 1),
-    ('Marie', '0678901234', NOW() + INTERVAL '1 day' + INTERVAL '10 hours', FALSE, 1),
-    ('Pierre', '0645678901', NOW() + INTERVAL '2 days' + INTERVAL '14 hours', TRUE, 3),
-    ('Sophie', '0611122233', NOW() + INTERVAL '1 day' + INTERVAL '9 hours', FALSE, 1);
+-- INSERT INTO reservations (client_name, client_phone, start_date, is_long_duration, duration_days)
+-- VALUES
+--     ('Jean', '0612345678', NOW() + INTERVAL '1 day' + INTERVAL '9 hours', FALSE, 1),
+--     ('Marie', '0678901234', NOW() + INTERVAL '1 day' + INTERVAL '10 hours', FALSE, 1),
+--     ('Pierre', '0645678901', NOW() + INTERVAL '2 days' + INTERVAL '14 hours', TRUE, 3),
+--     ('Sophie', '0611122233', NOW() + INTERVAL '1 day' + INTERVAL '9 hours', FALSE, 1);
 
-INSERT INTO reservation_items (reservation_id, bike_type, quantity)
-SELECT id, 'vae', 2 FROM reservations WHERE client_name = 'Jean';
-INSERT INTO reservation_items (reservation_id, bike_type, quantity)
-SELECT id, 'vtc', 1 FROM reservations WHERE client_name = 'Marie';
-INSERT INTO reservation_items (reservation_id, bike_type, quantity)
-SELECT id, 'tandem', 1 FROM reservations WHERE client_name = 'Pierre';
-INSERT INTO reservation_items (reservation_id, bike_type, quantity, bike_size)
-SELECT id, 'enfant-20p', 2, '20p' FROM reservations WHERE client_name = 'Sophie';
-INSERT INTO reservation_items (reservation_id, bike_type, quantity, bike_size)
-SELECT id, 'enfant-24p', 1, '24p' FROM reservations WHERE client_name = 'Sophie';
+-- INSERT INTO reservation_items (reservation_id, bike_type, quantity)
+-- SELECT id, 'vae', 2 FROM reservations WHERE client_name = 'Jean';
+-- INSERT INTO reservation_items (reservation_id, bike_type, quantity)
+-- SELECT id, 'vtc', 1 FROM reservations WHERE client_name = 'Marie';
+-- INSERT INTO reservation_items (reservation_id, bike_type, quantity)
+-- SELECT id, 'tandem', 1 FROM reservations WHERE client_name = 'Pierre';
+-- INSERT INTO reservation_items (reservation_id, bike_type, quantity, bike_size)
+-- SELECT id, 'enfant-20p', 2, '20p' FROM reservations WHERE client_name = 'Sophie';
+-- INSERT INTO reservation_items (reservation_id, bike_type, quantity, bike_size)
+-- SELECT id, 'enfant-24p', 1, '24p' FROM reservations WHERE client_name = 'Sophie';
