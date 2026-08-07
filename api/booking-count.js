@@ -122,7 +122,12 @@ function buildTypes(bikeTypes) {
                 key: bt.key,
                 label: bt.label || bt.key,
                 icon: bt.icon || '🚲',
-                description: (bt.description && bt.description.trim()) || def.description || '',
+                // Description : on RESPECTE la valeur en base quand elle existe
+                // (même vide). Le défaut n'est utilisé que si la colonne n'existe
+                // pas dans la table (structure non migrée ⇒ description undefined).
+                description: bt.description !== undefined && bt.description !== null
+                    ? bt.description
+                    : (def.description || ''),
                 fleetKey: bt.fleet_key || def.fleet_key || bt.key,
                 isChildSize: bt.is_child_size !== undefined ? !!bt.is_child_size : !!def.is_child_size,
                 // "enfant" toujours en dernier quel que soit la base
@@ -271,36 +276,22 @@ module.exports = async (req, res) => {
 
     try {
         // ---------- BIKE_TYPES : SOURCE UNIQUE ----------
-        // 1er appel : colonnes d'origine (existent toujours). Permet de savoir
-        // si la table est accessible et quels types elle contient réellement.
+        // select=* : PostgREST renvoie toutes les colonnes EXISTANTES de la table
+        // sans erreur, quelle que soit sa structure (migrée ou non).
+        // Les colonnes manquantes (match_keywords, fleet_key...) seront juste
+        // undefined dans les objets → la fusion buildTypes les complète.
         let bikeTypes = [];
         let supabaseAvailable = true;
         try {
+            // Pas d'order ici : si la colonne sort_order n'existe pas encore,
+            // PostgREST renvoie une erreur. Le tri est déjà fait dans buildTypes.
             bikeTypes = await supabaseFetch('bike_types', {
-                select: 'key,label,icon,description,is_active,sort_order',
-                order: 'sort_order.asc',
+                select: '*',
             });
         } catch (supaErr) {
             // Table absente ou Supabase indisponible → mode dégradé
             console.warn('⚠️ bike_types non chargés:', supaErr.message);
             supabaseAvailable = false;
-        }
-
-        // 2e appel : nouvelles colonnes (match_keywords, fleet_key...).
-        // Si elles n'existent pas encore en base, PostgREST renvoie une erreur
-        // → on conserve le résultat du 1er appel (types réels de la table).
-        if (supabaseAvailable && bikeTypes.length > 0) {
-            try {
-                const enriched = await supabaseFetch('bike_types', {
-                    select: 'key,label,icon,description,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
-                    order: 'sort_order.asc',
-                });
-                if (Array.isArray(enriched) && enriched.length > 0) {
-                    bikeTypes = enriched;
-                }
-            } catch (enrichErr) {
-                console.warn('⚠️ Colonnes enrichies absentes, conservation des types de base:', enrichErr.message);
-            }
         }
 
         // Fallback UNIQUEMENT si Supabase est indisponible ou la table est vide.
