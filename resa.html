@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Réservations — Véloc</title>
+    <link rel="icon" href="assets/logo_veloc.png">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+            padding: 20px 16px 40px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header img {
+            width: 64px;
+            height: 64px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        header h1 {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        header .updated {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .error-box {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            word-break: break-word;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: #e2e8f0;
+            padding: 6px;
+            border-radius: 14px;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: #ffffff;
+            color: #0052cc;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: #0052cc;
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 18px 14px;
+            text-align: center;
+            box-shadow: 0 6px 16px rgba(0, 82, 204, 0.25);
+        }
+
+        .summary-card.green {
+            background: #16a34a;
+            box-shadow: 0 6px 16px rgba(22, 163, 74, 0.25);
+        }
+
+        .summary-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+            margin-bottom: 4px;
+        }
+
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .summary-card .sub {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 4px;
+        }
+
+        .panel {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title .count-badge {
+            background: #0052cc;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+
+        .cat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .cat-row:last-child {
+            border-bottom: none;
+        }
+
+        .cat-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cat-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .cat-name {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .cat-count {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .cat-count.sub {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0052cc;
+        }
+
+        .stock {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+            margin-left: 6px;
+        }
+
+        .booking-item {
+            padding: 14px 0;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .booking-item:last-child {
+            border-bottom: none;
+        }
+
+        .booking-date {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0052cc;
+            margin-bottom: 3px;
+        }
+
+        .booking-text {
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.4;
+        }
+
+        .booking-detail {
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 700;
+            text-align: right;
+            white-space: nowrap;
+            background: #eff6ff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            max-width: 55%;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px 16px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 30px;
+            line-height: 1.6;
+        }
+
+        .refresh-btn {
+            display: block;
+            width: 100%;
+            margin-top: 16px;
+            padding: 16px;
+            border: none;
+            border-radius: 14px;
+            background: #0052cc;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(0, 82, 204, 0.25);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.98);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="assets/logo_veloc.png" alt="Véloc">
+        <h1>Réservations</h1>
+        <div class="updated" id="updatedText">Chargement...</div>
+    </header>
+
+    <div id="errorBox" class="error-box hidden"></div>
+
+    <div class="tabs">
+        <button class="tab active" data-view="today">Aujourd'hui</button>
+        <button class="tab" data-view="upcoming">À venir</button>
+        <button class="tab" data-view="all">Toutes</button>
+    </div>
+
+    <!-- Cartes de synthèse -->
+    <div class="summary-cards">
+        <div class="summary-card" id="cardTotal">
+            <div class="label">Résa</div>
+            <div class="value" id="cardTotalValue">–</div>
+            <div class="sub" id="cardTotalSub"></div>
+        </div>
+        <div class="summary-card green" id="cardEnfants">
+            <div class="label">Enfants</div>
+            <div class="value" id="cardEnfantsValue">–</div>
+            <div class="sub" id="cardEnfantsSub"></div>
+        </div>
+        <div class="summary-card" id="cardVelos">
+            <div class="label">Vélos</div>
+            <div class="value" id="cardVelosValue">–</div>
+            <div class="sub" id="cardVelosSub"></div>
+        </div>
+    </div>
+
+    <!-- Détail par catégorie -->
+    <div class="panel">
+        <div class="panel-title">
+            Détail
+            <span class="count-badge" id="detailBadge">0</span>
+        </div>
+        <div id="categories"></div>
+    </div>
+
+    <!-- Liste des réservations -->
+    <div class="panel">
+        <div class="panel-title">
+            Réservations
+            <span class="count-badge" id="bookingsBadge">0</span>
+        </div>
+        <div id="bookingsList"></div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
+
+    <div class="footer-note">
+        Mise à jour automatique à chaque rechargement.<br>
+        Données issues du calendrier partagé iCloud.
+    </div>
+
+    <script>
+        const LABELS = {
+            vtc:            'VTC',
+            vae:            'VAE',
+            ville:          'Ville',
+            route:          'Route',
+            tandem:         'Tandem',
+            siege:          'Siège',
+            charrette:      'Charrette',
+            charretteChien: 'Charrette chien',
+            p16:            '16p',
+            p20:            '20p',
+            p24:            '24p',
+            p26:            '26p',
+            enfant:         'Enfants (total)',
+        };
+
+        const COLORS = {
+            vtc:            '#3b82f6',
+            vae:            '#10b981',
+            ville:          '#f59e0b',
+            route:          '#ef4444',
+            tandem:         '#8b5cf6',
+            siege:          '#ec4899',
+            charrette:      '#78716c',
+            charretteChien: '#a8a29e',
+            p16:            '#f97316',
+            p20:            '#f97316',
+            p24:            '#f97316',
+            p26:            '#f97316',
+            enfant:         '#0052cc',
+        };
+
+        const ORDER = [
+            'vtc', 'vae', 'ville', 'route', 'tandem', 'siege',
+            'charrette', 'charretteChien',
+            'enfant', 'p16', 'p20', 'p24', 'p26',
+        ];
+
+        const NO_DETECT_LABEL = 'Aucun vélo détecté';
+
+        function formatDate(iso) {
+            if (!iso) return 'Date inconnue';
+            const d = new Date(iso);
+            return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        function formatSummary(detected) {
+            const parts = [];
+            for (const key of ORDER) {
+                if (detected[key]) {
+                    parts.push(`${detected[key]} ${LABELS[key] || key}`);
+                }
+            }
+            return parts.length > 0 ? parts.join(' · ') : NO_DETECT_LABEL;
+        }
+
+        let state = {
+            data: null,
+            view: 'today',
+        };
+
+        function isToday(iso) {
+            if (!iso) return false;
+            const d = new Date(iso);
+            const now = new Date();
+            return d.getFullYear() === now.getFullYear() &&
+                   d.getMonth() === now.getMonth() &&
+                   d.getDate() === now.getDate();
+        }
+
+        function getFilteredBookings() {
+            if (!state.data) return [];
+            if (state.view === 'all') return state.data.bookings;
+            if (state.view === 'today') return state.data.bookings.filter(b => isToday(b.start));
+            return state.data.bookings.filter(b => {
+                if (!b.start) return true;
+                const d = new Date(b.start);
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                return d >= startOfToday;
+            });
+        }
+
+        function getDateRangeLabel() {
+            if (state.view === 'today') return "Aujourd'hui";
+            if (state.view === 'upcoming') return 'À venir';
+            return 'Toutes';
+        }
+
+        function computeViewTotals(bookings) {
+            const totals = {};
+            for (const k of ORDER) totals[k] = 0;
+            for (const b of bookings) {
+                for (const k in b.detected) {
+                    if (totals[k] !== undefined) totals[k] += b.detected[k];
+                    if (['p16', 'p20', 'p24', 'p26'].includes(k)) totals.enfant += b.detected[k];
+                }
+            }
+            return totals;
+        }
+
+        function render() {
+            if (!state.data) return;
+
+            const bookings = getFilteredBookings();
+            const totals = computeViewTotals(bookings);
+
+            // Cartes de synthèse
+            document.getElementById('cardTotalValue').textContent = bookings.length;
+            document.getElementById('cardTotalSub').textContent = getDateRangeLabel();
+
+            document.getElementById('cardEnfantsValue').textContent = totals.enfant;
+            document.getElementById('cardEnfantsSub').textContent = `/ ${state.data.stock.enfant || 0} dispo`;
+
+            const totalVelos = ['vtc','vae','ville','route','tandem','siege','charrette','charretteChien','p16','p20','p24','p26']
+                .reduce((s, k) => s + (totals[k] || 0), 0);
+            document.getElementById('cardVelosValue').textContent = totalVelos;
+            document.getElementById('cardVelosSub').textContent = `${bookings.length} résa`;
+
+            // Badges
+            document.getElementById('detailBadge').textContent = bookings.length;
+            document.getElementById('bookingsBadge').textContent = bookings.length;
+
+            // Détail par catégorie
+            const catEl = document.getElementById('categories');
+            catEl.innerHTML = '';
+            for (const k of ORDER) {
+                const row = document.createElement('div');
+                row.className = 'cat-row';
+                const left = document.createElement('div');
+                left.className = 'cat-left';
+
+                const dot = document.createElement('div');
+                dot.className = 'cat-dot';
+                dot.style.background = COLORS[k] || '#94a3b8';
+
+                const name = document.createElement('div');
+                name.className = 'cat-name';
+                name.textContent = LABELS[k] || k;
+                if (k === 'enfant') {
+                    const stock = document.createElement('span');
+                    stock.className = 'stock';
+                    stock.textContent = `/ ${state.data.stock[k]} dispo`;
+                    name.appendChild(stock);
+                }
+
+                left.appendChild(dot);
+                left.appendChild(name);
+
+                const countEl = document.createElement('div');
+                countEl.className = k === 'enfant' ? 'cat-count sub' : 'cat-count';
+                countEl.textContent = totals[k] || 0;
+
+                row.appendChild(left);
+                row.appendChild(countEl);
+                catEl.appendChild(row);
+            }
+
+            // Liste des réservations
+            const listEl = document.getElementById('bookingsList');
+            listEl.innerHTML = '';
+            if (bookings.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.textContent = 'Aucune réservation pour cette période.';
+                listEl.appendChild(empty);
+            } else {
+                bookings.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+                bookings.forEach(b => {
+                    const item = document.createElement('div');
+                    item.className = 'booking-item';
+
+                    const info = document.createElement('div');
+                    const date = document.createElement('div');
+                    date.className = 'booking-date';
+                    date.textContent = formatDate(b.start);
+                    const text = document.createElement('div');
+                    text.className = 'booking-text';
+                    text.textContent = b.summary;
+                    info.appendChild(date);
+                    info.appendChild(text);
+
+                    const detail = document.createElement('div');
+                    detail.className = 'booking-detail';
+                    detail.textContent = formatSummary(b.detected);
+                    if (Object.keys(b.detected).length === 0) {
+                        detail.style.background = '#f8fafc';
+                        detail.style.color = '#94a3b8';
+                    }
+
+                    item.appendChild(info);
+                    item.appendChild(detail);
+                    listEl.appendChild(item);
+                });
+            }
+        }
+
+        async function loadData() {
+            document.getElementById('updatedText').textContent = 'Chargement...';
+            document.getElementById('errorBox').classList.add('hidden');
+            try {
+                const resp = await fetch('/api/booking-count');
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error || `Erreur HTTP ${resp.status}`);
+                }
+                state.data = await resp.json();
+                document.getElementById('updatedText').textContent =
+                    `Mis à jour le ${new Date(state.data.generatedAt).toLocaleString('fr-FR')}`;
+                render();
+            } catch (err) {
+                document.getElementById('errorBox').textContent = 'Erreur : ' + err.message;
+                document.getElementById('errorBox').classList.remove('hidden');
+                document.getElementById('updatedText').textContent = 'Chargement impossible';
+            }
+        }
+
+        // Onglets
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                state.view = tab.dataset.view;
+                render();
+            });
+        });
+
+        // Rechargement automatique toutes les 5 minutes (onglet actif)
+        setInterval(() => {
+            if (!document.hidden) loadData();
+        }, 5 * 60 * 1000);
+
+        loadData();
+    </script>
+</body>
+</html>
