@@ -84,7 +84,7 @@ CREATE TABLE fleet_history (
 
 -- Ligne initiale pour aujourd'hui (clés = fleet_key des bike_types)
 INSERT INTO fleet_history (date, totals)
-VALUES (TO_CHAR(NOW(), 'YYYY-MM-DD'), '{"vae":70,"vtc":70,"ville":10,"route":5,"tandem":1,"siege":7,"charretteChien":1,"charrette":3,"enfant":2,"enfant-16p":1,"enfant-20p":2,"enfant-24p":2,"enfant-26p":2}');
+VALUES (TO_CHAR(NOW(), 'YYYY-MM-DD'), '{"vae":70,"vtc":70,"ville":4,"route":1,"tandem":0,"siege":6,"charretteChien":1,"charrette":2,"enfant":10,"enfant-16p":1,"enfant-20p":4,"enfant-24p":1,"enfant-26p":4}');
 
 CREATE INDEX idx_reservations_date ON reservations (start_date);
 CREATE INDEX idx_reservations_status ON reservations (status);
