@@ -61,7 +61,7 @@ INSERT INTO bike_types (key, label, icon, description, default_total, match_keyw
     -- "enfant" est une SYNTHÈSE calculée automatiquement (somme des is_child_size).
     -- Il n'a pas de mots-clés propres et n'est pas lui-même is_child_size,
     -- sinon il serait additionné à lui-même (double comptage).
-    ('enfant',         'Enfants (total équipe)', '🧒',  'Synthèse automatique : somme des tailles enfants', 2,   '{}',                    'enfant',                 FALSE, FALSE, 1),
+    ('enfant',         'Enfants (total équipe)', '🧒',  'Synthèse automatique : somme des tailles enfants', 2,   '{}',                    'enfant',                 FALSE, FALSE, 14),
     ('vae',            'VAE',                   '⚡',  '', 70, '{vae, électrique, electrique, ebike, elec}',                              'vae',                     FALSE, FALSE, 2),
     ('vtc',            'VTC',                   '🚲',  '', 70, '{vtc, classique, mecanique, mécanique}',                                    'vtc',                     FALSE, FALSE, 3),
     ('ville',          'Ville',                 '🏙️', '', 10, '{ville}',                                                                  'ville',                   FALSE, FALSE, 4),

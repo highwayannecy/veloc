@@ -450,17 +450,17 @@
                 const name = document.createElement('div');
                 name.className = 'cat-name';
                 name.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
-                const stockTotal = getStockFor(t.key);
-                if (stockTotal !== null) {
+                if (t.description) {
                     const sp = document.createElement('span');
                     sp.className = 'stock';
-                    sp.textContent = `/ ${stockTotal}`;
+                    sp.textContent = ' ' + t.description;
                     name.appendChild(sp);
                 }
 
                 left.appendChild(dot);
                 left.appendChild(name);
 
+                const stockTotal = getStockFor(t.key);
                 const countEl = document.createElement('div');
                 countEl.className = t.isChildSize ? 'cat-count sub' : 'cat-count';
                 countEl.textContent = `${totals[t.key] || 0}/${stockTotal ?? '–'}`;
