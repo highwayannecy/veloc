@@ -409,18 +409,6 @@
             return datePart + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         }
 
-        /**
-         * Formate l'heure de fin d'un événement.
-         * Ex : "14:00" — retourne '' si absente ou si minuit.
-         */
-        function formatEndTime(iso) {
-            if (!iso) return '';
-            const d = new Date(iso);
-            const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
-            if (!hasTime) return '';
-            return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        }
-
         function formatSummary(detected) {
             const parts = [];
             for (const key of ORDER) {
@@ -432,14 +420,17 @@
         }
 
         /**
-         * Dérive un nom lisible de calendrier depuis son URL iCloud.
-         * Ex : webcal://p01-caldav.icloud.com/published/ABC123
-         *   → "ABC123"
+         * Calendrier de Richard (lien connu).
+         * URL complète : webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8v...
+         */
+        const RICHARD_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
+
+        /**
+         * Nom lisible d'un calendrier : "Richard" si c'est le sien, sinon "Véloc".
          */
         function calendarName(url) {
             if (!url) return '';
-            const lastPart = url.split('/').pop() || '';
-            return lastPart.slice(0, 10);
+            return url === RICHARD_CALENDAR ? 'Richard' : 'Véloc';
         }
 
         let state = {
@@ -565,12 +556,10 @@
 
                     const info = document.createElement('div');
 
-                    // Date + heure (fin si connue)
+                    // Date + heure de début
                     const date = document.createElement('div');
                     date.className = 'booking-date';
-                    const startLabel = formatDateWithHour(b.start);
-                    const endLabel = formatEndTime(b.end);
-                    date.textContent = endLabel ? `${startLabel} – ${endLabel}` : startLabel;
+                    date.textContent = formatDateWithHour(b.start);
 
                     const text = document.createElement('div');
                     text.className = 'booking-text';
@@ -578,12 +567,20 @@
                     info.appendChild(date);
                     info.appendChild(text);
 
-                    // Date de création de la réservation
+                    // Date et heure de création de la réservation
                     if (b.created) {
                         const created = document.createElement('div');
                         created.className = 'booking-calendar';
-                        created.textContent = '🕐 créé le ' + formatDate(b.created).replace(/^[a-zéû]+\.\s*/i, '');
+                        created.textContent = '🕐 créé le ' + formatDateWithHour(b.created).replace(/^[a-zéû]+\.\s*/i, '');
                         info.appendChild(created);
+                    }
+
+                    // Date et heure de dernière modification
+                    if (b.lastModified) {
+                        const modified = document.createElement('div');
+                        modified.className = 'booking-calendar';
+                        modified.textContent = '✏️ modifié le ' + formatDateWithHour(b.lastModified).replace(/^[a-zéû]+\.\s*/i, '');
+                        info.appendChild(modified);
                     }
 
                     // Lieu si renseigné
