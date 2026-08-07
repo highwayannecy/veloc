@@ -271,27 +271,46 @@ module.exports = async (req, res) => {
 
     try {
         // ---------- BIKE_TYPES : SOURCE UNIQUE ----------
-        // Les regex sont générées depuis bike_types.match_keywords
+        // 1er appel : colonnes d'origine (existent toujours). Permet de savoir
+        // si la table est accessible et quels types elle contient réellement.
         let bikeTypes = [];
         let supabaseAvailable = true;
         try {
             bikeTypes = await supabaseFetch('bike_types', {
-                select: 'key,label,icon,description,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
+                select: 'key,label,icon,description,is_active,sort_order',
                 order: 'sort_order.asc',
             });
         } catch (supaErr) {
-            // Si Supabase n'est pas configuré, on fonctionne en mode dégradé
+            // Table absente ou Supabase indisponible → mode dégradé
             console.warn('⚠️ bike_types non chargés:', supaErr.message);
             supabaseAvailable = false;
         }
 
-        // Fallback : si Supabase indisponible OU si la table n'a pas
-        // les nouvelles colonnes (aucun mot-clé chargé), on utilise la
-        // configuration par défaut pour que la détection fonctionne.
-        const hasAnyKeyword = (bikeTypes || []).some(bt => (bt.match_keywords || []).length > 0);
-        if (!supabaseAvailable || !bikeTypes || bikeTypes.length === 0 || !hasAnyKeyword) {
-            if (!supabaseAvailable) console.warn('⚠️ Utilisation des types par défaut (Supabase indisponible)');
-            else if (!hasAnyKeyword) console.warn('⚠️ Utilisation des types par défaut (colonnes match_keywords manquantes)');
+        // 2e appel : nouvelles colonnes (match_keywords, fleet_key...).
+        // Si elles n'existent pas encore en base, PostgREST renvoie une erreur
+        // → on conserve le résultat du 1er appel (types réels de la table).
+        if (supabaseAvailable && bikeTypes.length > 0) {
+            try {
+                const enriched = await supabaseFetch('bike_types', {
+                    select: 'key,label,icon,description,match_keywords,fleet_key,is_child_size,require_number,sort_order,is_active',
+                    order: 'sort_order.asc',
+                });
+                if (Array.isArray(enriched) && enriched.length > 0) {
+                    bikeTypes = enriched;
+                }
+            } catch (enrichErr) {
+                console.warn('⚠️ Colonnes enrichies absentes, conservation des types de base:', enrichErr.message);
+            }
+        }
+
+        // Fallback UNIQUEMENT si Supabase est indisponible ou la table est vide.
+        // Si la connexion est OK, on GARDE les types de la table : la fusion
+        // dans buildTypes complète mots-clés, descriptions et fleet_key depuis
+        // DEFAULT_BIKE_TYPES pour les types existants, SANS ajouter de types
+        // absents de la base (ex : charrette n'apparaîtra pas si elle n'y est pas).
+        const hasAnyRow = Array.isArray(bikeTypes) && bikeTypes.length > 0;
+        if (!supabaseAvailable || !hasAnyRow) {
+            console.warn('⚠️ Utilisation des types par défaut (Supabase indisponible ou table vide)');
             bikeTypes = DEFAULT_BIKE_TYPES;
         }
 
