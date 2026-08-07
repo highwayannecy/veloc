@@ -546,6 +546,10 @@
         async function loadData() {
             document.getElementById('updatedText').textContent = 'Chargement...';
             document.getElementById('errorBox').classList.add('hidden');
+
+            // Ré-essaie d'initialiser Supabase (le CDN peut être encore en chargement)
+            initResaSupabase();
+
             try {
                 const resp = await fetch('/api/booking-count');
                 if (!resp.ok) {
@@ -555,11 +559,56 @@
                 state.data = await resp.json();
                 document.getElementById('updatedText').textContent =
                     `Mis à jour le ${new Date(state.data.generatedAt).toLocaleString('fr-FR')}`;
+                // Si l'API n'a pas pu charger le stock, on essaie côté client
+                await loadStockFromSupabase();
                 render();
             } catch (err) {
                 document.getElementById('errorBox').textContent = 'Erreur : ' + err.message;
                 document.getElementById('errorBox').classList.remove('hidden');
                 document.getElementById('updatedText').textContent = 'Chargement impossible';
+            }
+        }
+
+        /**
+         * Charge le stock du jour (fleet_history) directement via le
+         * client Supabase, si l'API serveur n'a pas pu le fournir.
+         * Essaie la date UTC puis la date locale.
+         * Si le SDK n'est pas encore chargé, attend jusqu'à 3 secondes.
+         */
+        async function loadStockFromSupabase() {
+            // Attend que le SDK Supabase soit disponible (max 3s)
+            for (let i = 0; i < 30 && !window.supabase; i++) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            initResaSupabase();
+            if (!_supabase) return;
+
+            // Si l'API a déjà fourni un stock, rien à faire
+            const existing = state.data?.stock;
+            if (existing && typeof existing === 'object' && Object.keys(existing).length > 0) return;
+
+            const candidates = [
+                new Date().toISOString().slice(0, 10),          // date UTC
+                dateAtMidnight(0).toISOString().slice(0, 10),   // date locale
+            ];
+            const uniqueCandidates = [...new Set(candidates)];
+
+            for (const dateStr of uniqueCandidates) {
+                try {
+                    const { data, error } = await _supabase
+                        .from('fleet_history')
+                        .select('totals')
+                        .eq('date', dateStr)
+                        .maybeSingle();
+                    if (error) throw error;
+                    if (data && data.totals && typeof data.totals === 'object') {
+                        state.data.stock = data.totals;
+                        console.log('✅ Stock chargé depuis Supabase (client) pour', dateStr);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Stock non chargé côté client pour', dateStr, ':', e.message);
+                }
             }
         }
 
