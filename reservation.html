@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Réservations — Véloc</title>
+    <link rel="icon" href="assets/fav.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+            padding: 20px 16px 40px;
+        }
+
+        header { text-align: center; margin-bottom: 24px; }
+
+        header img {
+            height: 64px;
+            margin-bottom: 8px;
+        }
+
+        header h1 { font-size: 22px; font-weight: 800; }
+        header .updated { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+        .error-box {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            word-break: break-word;
+        }
+
+        /* --- PIN (charte resa) --- */
+        .pin-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+        }
+        .pin-overlay.hidden { display: none; }
+        .pin-box {
+            background: #ffffff; border-radius: 20px; padding: 32px;
+            text-align: center; width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .pin-box .lock-icon { font-size: 2.5rem; margin-bottom: 8px; }
+        .pin-box h2 { margin: 0 0 4px 0; font-size: 1.1rem; color: #1e293b; }
+        .pin-box p { margin: 0 0 16px 0; font-size: 0.78rem; color: #64748b; }
+        .pin-dots { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
+        .pin-dots .dot {
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid #e2e8f0; background: #fff;
+            transition: all 0.15s;
+        }
+        .pin-dots .dot.filled { background: #0052cc; border-color: #0052cc; }
+        .pin-dots .dot.wrong { background: #ef4444; border-color: #ef4444; }
+        .pin-error { font-size: 0.78rem; color: #ef4444; min-height: 20px; margin-bottom: 8px; }
+        .pin-numpad { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .pin-numpad button {
+            padding: 14px; border: none; border-radius: 12px; font-size: 1.3rem;
+            font-weight: 700; background: #f1f5f9; cursor: pointer;
+            transition: all 0.1s; color: #1e293b;
+        }
+        .pin-numpad button:hover { background: #e2e8f0; }
+        .pin-numpad button:active { transform: scale(0.95); }
+        .pin-numpad .blank { background: transparent; cursor: default; }
+        .pin-numpad .delete { font-size: 1rem; color: #64748b; }
+        .pin-numpad .delete:hover { background: #fee2e2; color: #ef4444; }
+
+        /* --- DATE PICKER --- */
+        .date-picker-block {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .date-picker-block .selected-date-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+            text-transform: capitalize;
+        }
+
+        input[type="date"] {
+            font-family: inherit;
+            font-size: 17px;
+            font-weight: 700;
+            color: #1e293b;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            outline: none;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        input[type="date"]:focus {
+            border-color: #0052cc;
+            background: #eff6ff;
+        }
+
+        .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+
+        .summary-card {
+            background: #0052cc; color: #ffffff;
+            border-radius: 16px;
+            padding: 18px 14px;
+            text-align: center;
+            box-shadow: 0 6px 16px rgba(0, 82, 204, 0.25);
+        }
+
+        .summary-card .label {
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+            margin-bottom: 4px;
+        }
+
+        .summary-card .value { font-size: 32px; font-weight: 800; line-height: 1.1; }
+        .summary-card .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+
+        .panel {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px; font-weight: 800;
+            margin-bottom: 16px;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title .count-badge {
+            background: #0052cc; color: #fff;
+            font-size: 13px; font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+
+        /* --- AIDE AU NOMMAGE --- */
+        .naming-tip {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+        .naming-tip-title {
+            font-size: 14px; font-weight: 800;
+            color: #0052cc;
+            margin-bottom: 10px;
+        }
+        .naming-tip-table {
+            width: 100%; border-collapse: collapse;
+            background: #fff; border-radius: 10px; overflow: hidden;
+        }
+        .naming-tip-table th {
+            text-align: left; font-size: 12px; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #64748b; background: #f8fafc;
+            padding: 8px 12px; border-bottom: 1px solid #e2e8f0;
+        }
+        .naming-tip-table td {
+            padding: 8px 12px; font-size: 14px;
+            border-bottom: 1px solid #f1f5f9; color: #1e293b;
+        }
+        .naming-tip-table tr:last-child td { border-bottom: none; }
+        .naming-tip-table .naming-tip-desc { font-size: 13px; color: #64748b; }
+
+        .cat-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid #f1f5f9;
+        }
+        .cat-row:last-child { border-bottom: none; }
+        .cat-left { display: flex; align-items: center; gap: 10px; }
+        .cat-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+        .cat-name { font-size: 15px; font-weight: 600; }
+        .cat-count { font-size: 18px; font-weight: 800; color: #0f172a; }
+        .cat-count.sub { font-size: 14px; font-weight: 700; color: #0052cc; }
+        .stock { font-size: 12px; color: #94a3b8; font-weight: 500; margin-left: 6px; }
+
+        .booking-item {
+            padding: 14px 0;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .booking-item:last-child { border-bottom: none; }
+
+        .booking-date { font-size: 12px; font-weight: 700; color: #0052cc; margin-bottom: 3px; }
+
+        .booking-calendar {
+            display: inline-block;
+            font-size: 11px; font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 2px 8px;
+            margin-top: 4px;
+        }
+        .booking-calendar.site { background: #e0f2fe; color: #0369a1; }
+        .booking-calendar.apple { background: #f1f5f9; color: #334155; }
+
+        .booking-status-tag {
+            display: inline-block;
+            font-size: 11px; font-weight: 700;
+            border-radius: 6px;
+            padding: 2px 8px;
+            margin-top: 4px;
+        }
+        .booking-status-tag.arrived { background: #d1fae5; color: #065f46; }
+        .booking-status-tag.noshow { background: #fee2e2; color: #991b1b; }
+        .booking-status-tag.waiting { background: #fef3c7; color: #92400e; }
+
+        .booking-text { font-size: 14px; color: #334155; line-height: 1.4; }
+
+        .booking-detail {
+            font-size: 13px; color: #0f172a; font-weight: 700;
+            text-align: right;
+            white-space: nowrap;
+            background: #eff6ff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            max-width: 55%;
+        }
+
+        .booking-actions {
+            display: flex; gap: 6px;
+            margin-top: 8px;
+        }
+        .mini-btn {
+            border: none; border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 12px; font-weight: 700;
+            cursor: pointer;
+        }
+        .mini-btn.arrived { background: #d1fae5; color: #065f46; }
+        .mini-btn.noshow { background: #fee2e2; color: #991b1b; }
+        .mini-btn.edit { background: #e0e7ff; color: #3730a3; }
+        .mini-btn.delete { background: #fee2e2; color: #991b1b; }
+
+        .empty-state { text-align: center; padding: 30px 16px; color: #94a3b8; font-size: 14px; }
+
+        .footer-note { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 30px; line-height: 1.6; }
+
+        .refresh-btn {
+            display: block; width: 100%;
+            margin: 16px 0; padding: 16px;
+            border: none; border-radius: 14px;
+            background: #0052cc; color: #fff;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 6px 16px rgba(0, 82, 204, 0.25);
+        }
+        .refresh-btn:active { transform: scale(0.98); }
+        .refresh-btn.success { background: #10b981; box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25); }
+
+        .cancel-btn { background: #e2e8f0; color: #475569; box-shadow: none; margin-top: 8px; }
+
+        .edit-stock-btn {
+            background: #f1f5f9; color: #475569;
+            border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 8px 14px; font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .edit-stock-btn:active { transform: scale(0.98); background: #e2e8f0; }
+
+        .stock-field-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+        }
+        .stock-field-row:last-child { border-bottom: none; }
+        .stock-field-label { font-size: 15px; font-weight: 600; }
+
+        .stock-field-input {
+            width: 80px; padding: 10px 14px;
+            border: 2px solid #e2e8f0; border-radius: 12px;
+            font-size: 18px; font-weight: 800; text-align: center;
+            color: #0f172a; background: #f8fafc;
+        }
+        .stock-field-input:focus { outline: none; border-color: #0052cc; background: #eff6ff; }
+
+        /* --- BOUTON + NOUVELLE --- */
+        .add-reservation-btn {
+            display: block; width: 100%;
+            margin-bottom: 16px; padding: 16px;
+            border: none; border-radius: 14px;
+            background: #10b981; color: #fff;
+            font-size: 16px; font-weight: 800; cursor: pointer;
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25);
+        }
+        .add-reservation-btn:active { transform: scale(0.98); }
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6); z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+            padding: 20px; backdrop-filter: blur(2px);
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-content {
+            background: #ffffff; border-radius: 16px;
+            width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+            padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute; top: 12px; right: 16px;
+            background: none; border: none; font-size: 1.5rem;
+            cursor: pointer; color: #64748b; line-height: 1;
+        }
+        .modal-close:hover { color: #1e293b; }
+        .modal-content h2 {
+            font-size: 1.1rem; color: #1e293b; margin: 0 0 16px 0;
+            padding-bottom: 10px; border-bottom: 2px solid #0052cc;
+        }
+
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.8rem; color: #1e293b; margin-bottom: 3px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 8px 10px; border: 2px solid #e2e8f0; border-radius: 8px;
+            font-size: 0.85rem; font-family: inherit; color: #1e293b; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #0052cc; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 400px) { .form-row { grid-template-columns: 1fr; } }
+
+        .bike-qty-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 8px 0 4px 0; }
+        .bike-qty-item {
+            display: flex; align-items: center; gap: 3px;
+            background: #f8fafc; border-radius: 6px; padding: 4px 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .bike-qty-item .bike-icon { font-size: 0.9rem; min-width: 18px; text-align: center; }
+        .bike-qty-item .bike-name { font-size: 0.7rem; font-weight: 600; color: #1e293b; }
+        .bike-qty-item .qty-control { display: flex; align-items: center; gap: 0; margin-left: auto; }
+        .bike-qty-item .qty-btn {
+            width: 22px; height: 22px; border: 1px solid #e2e8f0; background: #fff;
+            border-radius: 4px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            line-height: 1; padding: 0; transition: all 0.1s;
+        }
+        .bike-qty-item .qty-btn:hover { background: #0052cc; color: #fff; border-color: #0052cc; }
+        .bike-qty-item .qty-btn:active { transform: scale(0.95); }
+        .bike-qty-item .qty-value {
+            width: 26px; text-align: center; font-weight: 700; font-size: 0.8rem;
+            border: none; background: transparent; padding: 0;
+        }
+        .bike-qty-item .stock-indicator {
+            font-size: 0.55rem; font-weight: 600; padding: 1px 4px;
+            border-radius: 50px; white-space: nowrap; margin-left: 2px;
+        }
+        .stock-ok { background: #d1fae5; color: #065f46; }
+        .stock-low { background: #fef3c7; color: #92400e; }
+        .stock-no { background: #fee2e2; color: #991b1b; }
+
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0052cc; }
+        .checkbox-group label { font-weight: 600; font-size: 0.8rem; color: #1e293b; cursor: pointer; }
+        .duration-input { display: none; margin-top: 4px; }
+        .duration-input.show { display: block; }
+
+        .btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary { background: #0052cc; color: #fff; }
+        .btn-primary:hover { background: #003b99; }
+        .btn-success { background: #10b981; color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline { background: transparent; border: 2px solid #e2e8f0; color: #1e293b; }
+        .btn-outline:hover { border-color: #0052cc; }
+        .btn-sm { padding: 4px 10px; font-size: 0.7rem; }
+        .btn-full { width: 100%; justify-content: center; }
+
+        .toast {
+            position: fixed; bottom: 25px; right: 25px; padding: 10px 20px;
+            border-radius: 10px; color: #fff; font-weight: 600; font-size: 0.85rem;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15); z-index: 9999;
+            transform: translateY(100px); opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+        .toast.info { background: #0052cc; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <!-- PIN -->
+    <div class="pin-overlay" id="pin-overlay">
+        <div class="pin-box">
+            <div class="lock-icon">🔒</div>
+            <h2>Véloc'Annecy</h2>
+            <p>Entrez le code PIN pour accéder aux réservations</p>
+            <div class="pin-dots" id="pin-dots">
+                <span class="dot" data-idx="0"></span>
+                <span class="dot" data-idx="1"></span>
+                <span class="dot" data-idx="2"></span>
+                <span class="dot" data-idx="3"></span>
+            </div>
+            <div class="pin-error" id="pin-error"></div>
+            <div class="pin-numpad">
+                <button data-num="1">1</button>
+                <button data-num="2">2</button>
+                <button data-num="3">3</button>
+                <button data-num="4">4</button>
+                <button data-num="5">5</button>
+                <button data-num="6">6</button>
+                <button data-num="7">7</button>
+                <button data-num="8">8</button>
+                <button data-num="9">9</button>
+                <span class="blank"></span>
+                <button data-num="0">0</button>
+                <button class="delete" id="pin-delete">⌫</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <img src="assets/logo_veloc.png" alt="Véloc">
+        <h1>Réservations</h1>
+        <div class="updated" id="updatedText">Chargement...</div>
+    </header>
+
+    <div id="errorBox" class="error-box hidden"></div>
+
+    <!-- DATE PICKER -->
+    <div class="date-picker-block">
+        <div class="selected-date-label" id="selectedDateLabel">–</div>
+        <input type="date" id="datePicker">
+    </div>
+
+    <!-- Cartes de synthèse -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="label">Résa</div>
+            <div class="value" id="cardTotalValue">–</div>
+            <div class="sub" id="cardTotalSub"></div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Vélos</div>
+            <div class="value" id="cardVelosValue">–</div>
+            <div class="sub" id="cardVelosSub"></div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
+    <button class="add-reservation-btn" onclick="openReservationModal()">➕ Nouvelle réservation</button>
+
+    <!-- Aide au staff -->
+    <div class="naming-tip" id="namingTip">
+        <div class="naming-tip-title">✍️ Pour bien nommer vos réservations</div>
+        <table class="naming-tip-table">
+            <thead>
+                <tr><th>Vélo</th><th>Comment le noter</th></tr>
+            </thead>
+            <tbody id="namingTipContent"></tbody>
+        </table>
+    </div>
+
+    <!-- Détail par catégorie -->
+    <div class="panel">
+        <div class="panel-title">
+            Détail
+            <span class="count-badge" id="detailBadge">0</span>
+            <button class="edit-stock-btn" onclick="openStockEditor()">✏️ Stock</button>
+        </div>
+        <div id="categories"></div>
+    </div>
+
+    <!-- Éditeur de stock -->
+    <div class="panel hidden" id="stockEditor">
+        <div class="panel-title">
+            Modifier le stock
+            <span class="count-badge" id="stockDateBadge">–</span>
+        </div>
+        <div id="stockEditorFields"></div>
+        <button class="refresh-btn" onclick="saveStock()">💾 Enregistrer</button>
+        <button class="refresh-btn cancel-btn" onclick="closeStockEditor()">Annuler</button>
+    </div>
+
+    <!-- Liste des réservations (fusion iCloud + site) -->
+    <div class="panel">
+        <div class="panel-title">
+            Réservations
+            <span class="count-badge" id="bookingsBadge">0</span>
+        </div>
+        <div id="bookingsList"></div>
+    </div>
+
+    <!-- MODAL PRISE DE RÉSERVATION -->
+    <div class="modal-overlay" id="reservation-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close">&times;</button>
+            <h2 id="form-title">➕ Nouvelle réservation</h2>
+            <form id="reservation-form" novalidate>
+                <input type="hidden" id="edit-id" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Prénom *</label>
+                        <input type="text" id="client-name" required placeholder="Jean">
+                    </div>
+                    <div class="form-group">
+                        <label>Téléphone *</label>
+                        <input type="tel" id="client-phone" required placeholder="0612345678">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Date & heure de début *</label>
+                    <input type="datetime-local" id="start-date" required>
+                    <div style="font-size:0.7rem;color:#64748b;margin-top:3px;">📅 Réservation à partir de demain · ⏰ Dernière réservation à 10h45 (valable 15 min)</div>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.85rem;color:#0052cc;">🚲 Vélos et accessoires</label>
+                </div>
+                <div class="bike-qty-grid" id="bike-qty-grid">
+                    <!-- Généré dynamiquement -->
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="long-duration">
+                    <label for="long-duration">📅 Longue durée (+ieurs jours)</label>
+                </div>
+                <div class="duration-input" id="duration-input">
+                    <div class="form-row" style="gap:8px;">
+                        <div class="form-group" style="margin-bottom:0;"><label>Nombre de jours</label><input type="number" id="duration-days" value="2" min="2" max="30"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Jusqu'au</label><input type="date" id="end-date-display" readonly style="background:#f1f5f9;"></div>
+                    </div>
+                </div>
+                <div class="form-group"><label>Notes (optionnel)</label><input type="text" id="notes" placeholder="Casque, antivol..."></div>
+                <div style="display:flex;gap:8px;">
+                    <button type="submit" class="btn btn-success btn-full" id="submit-btn">✅ Enregistrer</button>
+                    <button type="button" class="btn btn-outline" id="cancel-edit-btn" style="display:none;">✕ Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        Fusion des réservations Calendrier Apple (iCloud) et du site (Supabase).<br>
+        Types de vélos, mots-clés et stock gérés dans Supabase.
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ============================================================
+        // CONFIG & ÉTAT
+        // ============================================================
+        const SUPABASE_CONFIG = {
+            url: 'https://kltvxgupcfscdzjorxtu.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdHZ4Z3VwY2ZzY2R6am9yeHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDEyNDEsImV4cCI6MjA5OTc3NzI0MX0.V4VT_xHbquzA-IeL3YOFEJYVrrcnaV9QmI-dRSiFHb8'
+        };
+        const VELOC_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
+        const PIN_CODE = '3300';
+        const UNLOCKED_KEY = 'veloc_admin_unlocked';
+        const DEVICE_NAME_KEY = 'veloc_device_name';
+
+        let _supabase = null;
+        let _bikeTypes = [];
+        let _fleet = {};
+        let FLOTTE = {};
+        let FLOTTE_TYPES = [];
+        let useSupabase = false;
+
+        let state = {
+            data: null,        // données API iCloud
+            siteReservations: [], // réservations Supabase normalisées
+            selectedDate: null,
+            initialized: false,
+        };
+
+        // ============================================================
+        // HELPERS COMMUNS
+        // ============================================================
+        function todayStr() {
+            const now = new Date();
+            return now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0');
+        }
+        function getDateStr(d) {
+            const date = new Date(d);
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+        }
+        function addDays(dateStr, n) {
+            const d = new Date(dateStr + 'T12:00:00');
+            d.setDate(d.getDate() + n);
+            return getDateStr(d);
+        }
+        function formatTime(iso) {
+            const d = new Date(iso);
+            return String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0');
+        }
+        function formatDateWithHour(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const datePart = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+            const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+            if (!hasTime) return datePart;
+            return datePart + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+        function showToast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            if (!t) return;
+            t.textContent = msg;
+            t.className = 'toast ' + type + ' show';
+            clearTimeout(t._timeout);
+            t._timeout = setTimeout(() => t.classList.remove('show'), 3500);
+        }
+        function getDeviceType() {
+            const ua = navigator.userAgent;
+            if (/iPhone/i.test(ua)) return '📱 iPhone';
+            if (/iPad/i.test(ua)) return '📱 iPad';
+            if (/Android/i.test(ua)) return '📱 Android';
+            if (/Mac/i.test(ua)) return '💻 Mac';
+            if (/Windows/i.test(ua)) return '💻 PC Windows';
+            if (/Linux/i.test(ua)) return '💻 Linux';
+            return '📱 Appareil inconnu';
+        }
+        function getDeviceName() {
+            let saved = localStorage.getItem(DEVICE_NAME_KEY);
+            if (!saved) {
+                saved = getDeviceType() + ' - ' +
+                    (navigator.userAgent.match(/Chrome\/(\S+)/)?.[1] ? 'Chrome' :
+                     navigator.userAgent.match(/Safari\//) ? 'Safari' :
+                     navigator.userAgent.match(/Firefox\//) ? 'Firefox' : 'Navigateur');
+                localStorage.setItem(DEVICE_NAME_KEY, saved);
+            }
+            return saved;
+        }
+
+        // ============================================================
+        // SUPABASE INIT
+        // ============================================================
+        function initSupabaseClient() {
+            if (window.supabase && !_supabase) {
+                try {
+                    _supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+                    console.log('✅ Supabase connecté (reservation.html)');
+                } catch (e) {
+                    console.error('❌ Erreur Supabase:', e);
+                }
+            }
+        }
+
+        async function isSupabaseReady() {
+            if (!_supabase) return false;
+            try {
+                const { error } = await _supabase
+                    .from('reservations')
+                    .select('id', { count: 'exact', head: true });
+                return !error;
+            } catch { return false; }
+        }
+
+        // ============================================================
+        // TYPES DE VÉLOS + FLOTTE (même logique que admin.js)
+        // ============================================================
+        async function loadBikeTypes() {
+            if (useSupabase && _supabase) {
+                try {
+                    const { data, error } = await _supabase
+                        .from('bike_types')
+                        .select('*')
+                        .order('sort_order', { ascending: true });
+                    if (!error && data && data.length) {
+                        _bikeTypes = data;
+                        return;
+                    }
+                } catch (e) { /* fallback */ }
+            }
+            _bikeTypes = [
+                { key: 'vae', label: 'VAE', icon: '⚡', description: '', default_total: 70, sort_order: 1 },
+                { key: 'vtc', label: 'VTC', icon: '🚲', description: '', default_total: 70, sort_order: 2 },
+                { key: 'tandem', label: 'Tandem', icon: '👫', description: '', default_total: 1, sort_order: 3 },
+                { key: 'enfant-16p', label: 'Enfant 16p', icon: '🧒', description: '4 à 6 ans', default_total: 1, sort_order: 4 },
+                { key: 'enfant-20p', label: 'Enfant 20p', icon: '🧒', description: '6 à 8 ans', default_total: 2, sort_order: 5 },
+                { key: 'enfant-24p', label: 'Enfant 24p', icon: '🧒', description: '8 à 10 ans', default_total: 2, sort_order: 6 },
+                { key: 'enfant-26p', label: 'Enfant 26p', icon: '🧒', description: '10 ans et +', default_total: 2, sort_order: 7 },
+                { key: 'siege', label: 'Siège bébé', icon: '🍼', description: '', default_total: 7, sort_order: 8 },
+            ];
+        }
+
+        function getActiveTypes() {
+            return _bikeTypes.filter(t => t.is_active !== false);
+        }
+
+        async function syncFleetFromDB(dateStr) {
+            let fleet = null;
+            if (useSupabase && _supabase) {
+                try {
+                    const { data, error } = await _supabase
+                        .from('fleet_history')
+                        .select('totals')
+                        .eq('date', dateStr || todayStr())
+                        .maybeSingle();
+                    if (!error && data && data.totals) fleet = data.totals;
+                    if (!fleet) {
+                        const { data: last, error: lastErr } = await _supabase
+                            .from('fleet_history')
+                            .select('totals')
+                            .lte('date', dateStr || todayStr())
+                            .order('date', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+                        if (!lastErr && last && last.totals) fleet = last.totals;
+                    }
+                } catch (e) { /* fallback */ }
+            }
+            if (!fleet) {
+                fleet = {};
+                getActiveTypes().forEach(t => { fleet[t.key] = t.default_total || 0; });
+            }
+            _fleet = fleet;
+            FLOTTE = {};
+            getActiveTypes().forEach(t => {
+                FLOTTE[t.key] = { label: t.label, icon: t.icon, total: fleet[t.key] !== undefined ? fleet[t.key] : (t.default_total || 0) };
+            });
+            FLOTTE_TYPES = Object.keys(FLOTTE);
+        }
+
+        // ============================================================
+        // RÉSERVATIONS SITE (Supabase) — mêmes fonctions que admin.js
+        // ============================================================
+        function normalizeItem(item) {
+            let bikeType = item.bike_type || item.bikeType;
+            const bikeSize = item.bike_size || item.bikeSize || null;
+            if (bikeType === 'enfant' && bikeSize) bikeType = 'enfant-' + bikeSize;
+            return { id: item.id, bikeType, quantity: item.quantity || 1, bikeSize: null };
+        }
+        function normalize(r) {
+            return {
+                id: r.id,
+                clientName: r.client_name || r.clientName,
+                clientPhone: r.client_phone || r.clientPhone,
+                startDate: r.start_date || r.startDate,
+                isLongDuration: r.is_long_duration !== undefined ? r.is_long_duration : (r.isLongDuration || false),
+                durationDays: r.duration_days || r.durationDays || 1,
+                endDate: r.end_date || r.endDate || null,
+                status: r.status || null,
+                notes: r.notes || '',
+                createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+                deviceName: r.device_name || r.deviceName || '',
+                items: (r.reservation_items || r.items || []).map(normalizeItem),
+            };
+        }
+
+        async function loadSiteReservations() {
+            if (useSupabase && _supabase) {
+                try {
+                    const { data, error } = await _supabase
+                        .from('reservations')
+                        .select('*, reservation_items(*)')
+                        .order('start_date', { ascending: false });
+                    if (!error && data) return data.map(normalize);
+                } catch (e) { /* fallback */ }
+            }
+            return [];
+        }
+
+        async function saveSiteReservation(reservation, items, editId = null) {
+            if (editId) {
+                if (useSupabase && _supabase) {
+                    try {
+                        await _supabase.from('reservation_items').delete().eq('reservation_id', editId);
+                        const { error } = await _supabase.from('reservations').update({
+                            client_name: reservation.clientName,
+                            client_phone: reservation.clientPhone,
+                            start_date: reservation.startDate,
+                            is_long_duration: reservation.isLongDuration,
+                            duration_days: reservation.durationDays || 1,
+                            end_date: reservation.endDate || null,
+                            notes: reservation.notes || '',
+                            device_name: reservation.deviceName || '',
+                        }).eq('id', editId);
+                        if (!error) {
+                            for (const item of items) {
+                                await _supabase.from('reservation_items').insert([{
+                                    reservation_id: editId, bike_type: item.bikeType,
+                                    quantity: item.quantity, bike_size: item.bikeSize || null,
+                                }]);
+                            }
+                            return true;
+                        }
+                    } catch (e) { /* fallback */ }
+                }
+                return false;
+            }
+            if (useSupabase && _supabase) {
+                try {
+                    const { data: resData, error: resError } = await _supabase.from('reservations').insert([{
+                        client_name: reservation.clientName,
+                        client_phone: reservation.clientPhone,
+                        start_date: reservation.startDate,
+                        is_long_duration: reservation.isLongDuration,
+                        duration_days: reservation.durationDays || 1,
+                        end_date: reservation.endDate || null,
+                        notes: reservation.notes || '',
+                        device_name: reservation.deviceName || '',
+                    }]).select();
+                    if (!resError && resData && resData[0]) {
+                        const resId = resData[0].id;
+                        for (const item of items) {
+                            await _supabase.from('reservation_items').insert([{
+                                reservation_id: resId, bike_type: item.bikeType,
+                                quantity: item.quantity, bike_size: item.bikeSize || null,
+                            }]);
+                        }
+                        return true;
+                    }
+                } catch (e) { /* fallback */ }
+            }
+            return false;
+        }
+
+        async function updateSiteReservationStatus(id, status) {
+            if (useSupabase && _supabase) {
+                try {
+                    const { error } = await _supabase.from('reservations').update({ status: status || null }).eq('id', id);
+                    if (!error) return true;
+                } catch (e) { /* fallback */ }
+            }
+            return false;
+        }
+
+        async function deleteSiteReservation(id) {
+            if (useSupabase && _supabase) {
+                try {
+                    await _supabase.from('reservation_items').delete().eq('reservation_id', id);
+                    const { error } = await _supabase.from('reservations').delete().eq('id', id);
+                    if (!error) return true;
+                } catch (e) { /* fallback */ }
+            }
+            return false;
+        }
+
+        // ============================================================
+        // FUSION iCloud + Site
+        // ============================================================
+        function selectedDateObj() {
+            if (!state.selectedDate) return null;
+            const [y, m, d] = state.selectedDate.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function getTypes() {
+            // types issus de l'API iCloud (fusionnés avec défauts), triés avec enfant en dernier
+            const types = state.data?.types || [];
+            return [...types].sort((a, b) => {
+                const sa = a.key === 'enfant' ? 999 : (a.sortOrder || 0);
+                const sb = b.key === 'enfant' ? 999 : (b.sortOrder || 0);
+                return sa - sb;
+            });
+        }
+
+        // Mapping iCloud → clé Supabase/stock
+        function toFleetKey(key) {
+            const map = {
+                p16: 'enfant-16p', p20: 'enfant-20p', p24: 'enfant-24p', p26: 'enfant-26p',
+            };
+            return map[key] || key;
+        }
+
+        function getStockFor(key) {
+            const stock = state.data?.stock;
+            if (!stock || typeof stock !== 'object') return null;
+            return stock[toFleetKey(key)] ?? null;
+        }
+
+        function getFilteredBookings() {
+            if (!state.selectedDate) return [];
+            const target = selectedDateObj();
+            if (!target) return [];
+
+            // 1) Résas iCloud
+            const apple = (state.data?.bookings || [])
+                .filter(b => {
+                    if (!b.start) return false;
+                    const d = new Date(b.start);
+                    return d.getFullYear() === target.getFullYear() &&
+                           d.getMonth() === target.getMonth() &&
+                           d.getDate() === target.getDate();
+                })
+                .map(b => ({ ...b, origin: 'apple' }));
+
+            // 2) Résas site (Supabase), incluant longue durée
+            const site = state.siteReservations
+                .filter(r => {
+                    const resDate = getDateStr(r.startDate);
+                    if (resDate === state.selectedDate) return true;
+                    if (r.isLongDuration && r.durationDays > 1) {
+                        for (let i = 0; i < r.durationDays; i++) {
+                            if (addDays(resDate, i) === state.selectedDate) return true;
+                        }
+                    }
+                    return false;
+                })
+                .map(r => ({
+                    origin: 'site',
+                    start: r.startDate,
+                    summary: r.clientName + (r.clientPhone ? ' · ' + r.clientPhone : ''),
+                    detected: {},
+                    siteReservation: r,
+                }));
+
+            return [...apple, ...site];
+        }
+
+        function computeViewTotals(bookings) {
+            const totals = {};
+            for (const t of getTypes()) totals[t.key] = 0;
+
+            for (const b of bookings) {
+                // iCloud : quantités détectées
+                if (b.origin === 'apple') {
+                    for (const k in b.detected) {
+                        if (totals[k] !== undefined) totals[k] += b.detected[k];
+                    }
+                }
+                // Site : quantités par items, mapping clés
+                if (b.origin === 'site' && b.siteReservation) {
+                    for (const item of b.siteReservation.items) {
+                        // Trouve la clé du type correspondant (p16 ↔ enfant-16p, etc.)
+                        const t = getTypes().find(x => toFleetKey(x.key) === item.bikeType);
+                        const key = t ? t.key : item.bikeType;
+                        if (totals[key] !== undefined) totals[key] += item.quantity;
+                    }
+                }
+            }
+            // Synthèse enfant : somme des isChildSize
+            for (const b of bookings) {
+                const kids = {};
+                if (b.origin === 'apple') {
+                    for (const k in b.detected) kids[k] = b.detected[k];
+                }
+                if (b.origin === 'site' && b.siteReservation) {
+                    for (const item of b.siteReservation.items) {
+                        const t = getTypes().find(x => toFleetKey(x.key) === item.bikeType);
+                        const key = t ? t.key : item.bikeType;
+                        kids[key] = (kids[key] || 0) + item.quantity;
+                    }
+                }
+                for (const t of getTypes()) {
+                    if (t.isChildSize && kids[t.key]) {
+                        totals['enfant'] = (totals['enfant'] || 0) + kids[t.key];
+                    }
+                }
+            }
+            return totals;
+        }
+
+        // ============================================================
+        // AFFICHAGE
+        // ============================================================
+        function calendarName(url) {
+            if (!url) return '';
+            return url === VELOC_CALENDAR ? 'Véloc' : 'Richard';
+        }
+
+        function formatSummaryBikes(detected) {
+            // Pour résa iCloud : résumé depuis detected
+            const parts = [];
+            for (const t of getTypes()) {
+                if (!t.hasKeywords) continue;
+                const count = detected[t.key] || 0;
+                if (count > 0) parts.push(`${count} ${t.label}`);
+            }
+            return parts.length > 0 ? parts.join(' · ') : 'Aucun vélo détecté';
+        }
+
+        function formatSiteBikes(siteReservation) {
+            const parts = [];
+            for (const item of siteReservation.items) {
+                const cfg = FLOTTE[item.bikeType] || { icon: '🚲', label: item.bikeType };
+                parts.push(`${cfg.icon} ${cfg.label} ×${item.quantity}`);
+            }
+            if (siteReservation.isLongDuration) parts.push(`📅 ${siteReservation.durationDays}j`);
+            return parts.length > 0 ? parts.join(' · ') : 'Aucun vélo';
+        }
+
+        function statusLabel(status) {
+            if (status === 'arrived') return { text: '✅ Venu', cls: 'arrived' };
+            if (status === 'noshow') return { text: '❌ Pas venu', cls: 'noshow' };
+            return { text: '⏳ En attente', cls: 'waiting' };
+        }
+
+        function updateSelectedDateLabel() {
+            const el = document.getElementById('selectedDateLabel');
+            if (!el) return;
+            const d = selectedDateObj();
+            if (!d) { el.textContent = 'Sélectionnez une date'; return; }
+            if (state.selectedDate === todayStr()) {
+                el.textContent = "Aujourd'hui · " + d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            } else {
+                el.textContent = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            }
+        }
+
+        function render() {
+            if (!state.data) return;
+            if (!state.selectedDate) return;
+
+            const bookings = getFilteredBookings();
+            const totals = computeViewTotals(bookings);
+            updateSelectedDateLabel();
+
+            document.getElementById('cardTotalValue').textContent = bookings.length;
+            document.getElementById('cardTotalSub').textContent = state.selectedDate;
+
+            // Compte les vélos iCloud + site (hors synthèse enfant)
+            let totalVelos = 0;
+            for (const b of bookings) {
+                if (b.origin === 'apple') {
+                    for (const t of getTypes()) {
+                        if (t.hasKeywords && t.key !== 'enfant') totalVelos += b.detected[t.key] || 0;
+                    }
+                } else if (b.origin === 'site' && b.siteReservation) {
+                    for (const item of b.siteReservation.items) {
+                        const t = getTypes().find(x => toFleetKey(x.key) === item.bikeType);
+                        const key = t ? t.key : item.bikeType;
+                        if (key !== 'enfant') totalVelos += item.quantity;
+                    }
+                }
+            }
+            document.getElementById('cardVelosValue').textContent = totalVelos;
+            document.getElementById('cardVelosSub').textContent = `${bookings.length} résa`;
+
+            document.getElementById('detailBadge').textContent = bookings.length;
+            document.getElementById('bookingsBadge').textContent = bookings.length;
+
+            // Aide au nommage
+            const tipContent = document.getElementById('namingTipContent');
+            if (tipContent) {
+                tipContent.innerHTML = '';
+                getTypes().forEach(t => {
+                    if (!t.hasKeywords) return;
+                    const row = document.createElement('tr');
+                    const tdType = document.createElement('td');
+                    tdType.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
+                    const tdDesc = document.createElement('td');
+                    tdDesc.className = 'naming-tip-desc';
+                    tdDesc.textContent = t.description || '';
+                    row.appendChild(tdType);
+                    row.appendChild(tdDesc);
+                    tipContent.appendChild(row);
+                });
+            }
+
+            // Détail par catégorie
+            const catEl = document.getElementById('categories');
+            catEl.innerHTML = '';
+            for (const t of getTypes()) {
+                const row = document.createElement('div');
+                row.className = 'cat-row';
+                const left = document.createElement('div');
+                left.className = 'cat-left';
+
+                const dot = document.createElement('div');
+                dot.className = 'cat-dot';
+                dot.style.background = '#3b82f6';
+
+                const name = document.createElement('div');
+                name.className = 'cat-name';
+                name.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
+                if (t.description) {
+                    const sp = document.createElement('span');
+                    sp.className = 'stock';
+                    sp.textContent = ' ' + t.description;
+                    name.appendChild(sp);
+                }
+                left.appendChild(dot);
+                left.appendChild(name);
+
+                const stockTotal = getStockFor(t.key);
+                const countEl = document.createElement('div');
+                countEl.className = t.isChildSize ? 'cat-count sub' : 'cat-count';
+                countEl.textContent = `${totals[t.key] || 0}/${stockTotal ?? '–'}`;
+
+                row.appendChild(left);
+                row.appendChild(countEl);
+                catEl.appendChild(row);
+            }
+
+            // Liste fusionnée
+            const listEl = document.getElementById('bookingsList');
+            listEl.innerHTML = '';
+            if (bookings.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.textContent = 'Aucune réservation pour cette date.';
+                listEl.appendChild(empty);
+                return;
+            }
+
+            bookings.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+            bookings.forEach(b => {
+                const item = document.createElement('div');
+                item.className = 'booking-item';
+
+                const info = document.createElement('div');
+
+                const date = document.createElement('div');
+                date.className = 'booking-date';
+                date.textContent = formatDateWithHour(b.start);
+                info.appendChild(date);
+
+                if (b.origin === 'apple') {
+                    const text = document.createElement('div');
+                    text.className = 'booking-text';
+                    text.textContent = b.summary;
+                    info.appendChild(text);
+
+                    if (b.created) {
+                        const created = document.createElement('div');
+                        created.className = 'booking-calendar apple';
+                        created.textContent = '🕐 créé le ' + formatDateWithHour(b.created).replace(/^[a-zéû]+\.\s*/i, '');
+                        info.appendChild(created);
+                    }
+                    if (b.calendar) {
+                        const cal = document.createElement('div');
+                        cal.className = 'booking-calendar apple';
+                        cal.textContent = '📅 ' + calendarName(b.calendar);
+                        info.appendChild(cal);
+                    }
+                    const detail = document.createElement('div');
+                    detail.className = 'booking-detail';
+                    detail.textContent = formatSummaryBikes(b.detected);
+                    if (Object.keys(b.detected).length === 0) {
+                        detail.style.background = '#f8fafc';
+                        detail.style.color = '#94a3b8';
+                    }
+                    item.appendChild(info);
+                    item.appendChild(detail);
+                } else if (b.origin === 'site') {
+                    const r = b.siteReservation;
+                    const text = document.createElement('div');
+                    text.className = 'booking-text';
+                    text.textContent = r.clientName;
+                    info.appendChild(text);
+
+                    if (r.clientPhone) {
+                        const phone = document.createElement('div');
+                        phone.className = 'booking-calendar site';
+                        phone.textContent = '📞 ' + r.clientPhone;
+                        info.appendChild(phone);
+                    }
+                    if (r.createdAt) {
+                        const created = document.createElement('div');
+                        created.className = 'booking-calendar site';
+                        created.textContent = '🕐 ' + new Date(r.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                        info.appendChild(created);
+                    }
+                    const st = statusLabel(r.status);
+                    const statusTag = document.createElement('div');
+                    statusTag.className = 'booking-status-tag ' + st.cls;
+                    statusTag.textContent = st.text;
+                    info.appendChild(statusTag);
+
+                    if (r.deviceName) {
+                        const device = document.createElement('div');
+                        device.className = 'booking-calendar site';
+                        device.textContent = '💻 ' + r.deviceName;
+                        info.appendChild(device);
+                    }
+
+                    // Actions de gestion
+                    const actions = document.createElement('div');
+                    actions.className = 'booking-actions';
+                    const btnArrived = document.createElement('button');
+                    btnArrived.className = 'mini-btn arrived';
+                    btnArrived.textContent = '✅ Venu';
+                    btnArrived.onclick = () => handleSiteArrived(r.id);
+                    const btnNoshow = document.createElement('button');
+                    btnNoshow.className = 'mini-btn noshow';
+                    btnNoshow.textContent = '❌ Pas venu';
+                    btnNoshow.onclick = () => handleSiteNoshow(r.id);
+                    const btnEdit = document.createElement('button');
+                    btnEdit.className = 'mini-btn edit';
+                    btnEdit.textContent = '✏️';
+                    btnEdit.onclick = () => handleSiteEdit(r.id);
+                    const btnDelete = document.createElement('button');
+                    btnDelete.className = 'mini-btn delete';
+                    btnDelete.textContent = '🗑️';
+                    btnDelete.onclick = () => handleSiteDelete(r.id);
+                    actions.appendChild(btnArrived);
+                    actions.appendChild(btnNoshow);
+                    actions.appendChild(btnEdit);
+                    actions.appendChild(btnDelete);
+                    info.appendChild(actions);
+
+                    const detail = document.createElement('div');
+                    detail.className = 'booking-detail';
+                    detail.textContent = formatSiteBikes(r);
+                    item.appendChild(info);
+                    item.appendChild(detail);
+                }
+                listEl.appendChild(item);
+            });
+        }
+
+        // ============================================================
+        // CHARGEMENT DES DONNÉES (API iCloud + site Supabase)
+        // ============================================================
+        async function loadData() {
+            document.getElementById('updatedText').textContent = 'Chargement...';
+            document.getElementById('errorBox').classList.add('hidden');
+            initSupabaseClient();
+
+            try {
+                const resp = await fetch('/api/booking-count');
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error || `Erreur HTTP ${resp.status}`);
+                }
+                state.data = await resp.json();
+                if (!state.initialized) {
+                    state.selectedDate = todayStr();
+                    state.initialized = true;
+                    document.getElementById('datePicker').value = state.selectedDate;
+                }
+                // Charger les résas site (Supabase)
+                state.siteReservations = await loadSiteReservations();
+                await syncFleetFromDB(state.selectedDate);
+
+                document.getElementById('updatedText').textContent =
+                    `Mis à jour le ${new Date(state.data.generatedAt).toLocaleString('fr-FR')}`;
+                render();
+            } catch (err) {
+                document.getElementById('errorBox').textContent = 'Erreur : ' + err.message;
+                document.getElementById('errorBox').classList.remove('hidden');
+                document.getElementById('updatedText').textContent = 'Chargement impossible';
+            }
+        }
+
+        // ============================================================
+        // FORMULAIRE / MODAL RÉSERVATION
+        // ============================================================
+        function renderBikeFormItems() {
+            const grid = document.getElementById('bike-qty-grid');
+            if (!grid) return;
+            let html = '';
+            FLOTTE_TYPES.forEach(t => {
+                const cfg = FLOTTE[t];
+                const desc = _bikeTypes.find(x => x.key === t)?.description || '';
+                html += `<div class="bike-qty-item" data-bike="${t}" title="${escapeHtml(desc)}">
+                    <span class="bike-icon">${cfg.icon}</span>
+                    <span class="bike-name">${cfg.label}</span>
+                    ${desc ? `<span style="font-size:0.55rem;color:#64748b;">${escapeHtml(desc)}</span>` : ''}
+                    <div class="qty-control">
+                        <button type="button" class="qty-btn qty-minus">−</button>
+                        <input type="text" class="qty-value" value="0" readonly>
+                        <button type="button" class="qty-btn qty-plus">+</button>
+                    </div>
+                    <span class="stock-indicator stock-ok">${cfg.total}</span>
+                </div>`;
+            });
+            grid.innerHTML = html;
+            setupQtyControls();
+        }
+
+        function setupQtyControls() {
+            document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-minus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const item = btn.closest('.bike-qty-item');
+                    const valEl = item.querySelector('.qty-value');
+                    const badge = item.querySelector('.stock-indicator');
+                    let val = parseInt(valEl.value) || 0;
+                    if (val > 0) {
+                        val--;
+                        valEl.value = val;
+                        if (badge) { const cur = parseInt(badge.textContent) || 0; badge.textContent = cur + 1; }
+                    }
+                    updatePlusButtons(item);
+                });
+            });
+            document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-plus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const item = btn.closest('.bike-qty-item');
+                    const valEl = item.querySelector('.qty-value');
+                    const badge = item.querySelector('.stock-indicator');
+                    const max = parseInt(badge?.textContent) || 0;
+                    let val = parseInt(valEl.value) || 0;
+                    if (val < max) {
+                        val++;
+                        valEl.value = val;
+                        if (badge) { const cur = parseInt(badge.textContent) || 0; badge.textContent = Math.max(0, cur - 1); }
+                    }
+                    updatePlusButtons(item);
+                });
+            });
+        }
+        function updatePlusButtons(item) {
+            const val = parseInt(item.querySelector('.qty-value').value) || 0;
+            const max = parseInt(item.querySelector('.stock-indicator').textContent) || 0;
+            const plusBtn = item.querySelector('.qty-plus');
+            if (plusBtn) plusBtn.disabled = val >= max;
+        }
+        function getQtyValues() {
+            const items = [];
+            document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => {
+                const bikeType = el.dataset.bike;
+                const qty = parseInt(el.querySelector('.qty-value').value) || 0;
+                if (qty > 0) items.push({ bikeType, quantity: qty, bikeSize: null });
+            });
+            return items;
+        }
+        function setQtyValues(items) {
+            document.querySelectorAll('.bike-qty-item:not(.walkin-item) .qty-value').forEach(el => el.value = '0');
+            items.forEach(item => {
+                const el = document.querySelector(`.bike-qty-item:not(.walkin-item)[data-bike="${item.bikeType}"]`);
+                if (el) {
+                    const valEl = el.querySelector('.qty-value');
+                    if (valEl) valEl.value = item.quantity;
+                    updatePlusButtons(el);
+                }
+            });
+        }
+
+        function validateDate(showError = true, allowToday = false) {
+            const startDateInput = document.getElementById('start-date');
+            if (!startDateInput) return false;
+            const val = startDateInput.value;
+            if (!val) return false;
+            const selected = new Date(val);
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            if (allowToday) {
+                if (selected < todayStart) {
+                    if (showError) showToast('❌ La date ne peut pas être dans le passé', 'error');
+                    const now = new Date();
+                    const off = now.getTimezoneOffset() * 60000;
+                    startDateInput.value = new Date(now.getTime() - off).toISOString().slice(0, 16);
+                    return false;
+                }
+            } else {
+                const tomorrowStart = new Date();
+                tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+                tomorrowStart.setHours(0, 0, 0, 0);
+                if (selected < tomorrowStart) {
+                    if (showError) showToast('❌ La réservation doit être pour demain au minimum', 'error');
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(9, 0, 0, 0);
+                    const off = tomorrow.getTimezoneOffset() * 60000;
+                    startDateInput.value = new Date(tomorrow.getTime() - off).toISOString().slice(0, 16);
+                    return false;
+                }
+            }
+            const hours = selected.getHours();
+            const minutes = selected.getMinutes();
+            if (hours < 8) {
+                if (showError) showToast('⏰ Ouverture à 8h minimum', 'error');
+                const corrected = new Date(selected); corrected.setHours(8, 0, 0, 0);
+                const off = corrected.getTimezoneOffset() * 60000;
+                startDateInput.value = new Date(corrected.getTime() - off).toISOString().slice(0, 16);
+                return false;
+            }
+            if (hours > 10 || (hours === 10 && minutes > 45)) {
+                if (showError) showToast('⏰ Dernière réservation à 10h45 (valide 15 min)', 'error');
+                const corrected = new Date(selected); corrected.setHours(10, 45, 0, 0);
+                const off = corrected.getTimezoneOffset() * 60000;
+                startDateInput.value = new Date(corrected.getTime() - off).toISOString().slice(0, 16);
+                return false;
+            }
+            return true;
+        }
+
+        function updateEndDate() {
+            const startDateInput = document.getElementById('start-date');
+            const durDays = document.getElementById('duration-days');
+            const endDateDisplay = document.getElementById('end-date-display');
+            if (!startDateInput || !durDays || !endDateDisplay) return;
+            if (startDateInput.value && durDays.value) {
+                const d = new Date(startDateInput.value);
+                const days = parseInt(durDays.value) || 2;
+                d.setDate(d.getDate() + days);
+                const off = d.getTimezoneOffset() * 60000;
+                endDateDisplay.value = new Date(d.getTime() - off).toISOString().slice(0, 10);
+            }
+        }
+
+        // Stock restant pour une date (iCloud + site combinés)
+        async function computeStockForDate(dateStr) {
+            const stock = {};
+            FLOTTE_TYPES.forEach(t => stock[t] = { total: FLOTTE[t].total, reserved: 0 });
+
+            // Résas site
+            state.siteReservations.forEach(r => {
+                const nr = r;
+                if (nr.status === 'noshow') return;
+                const resDate = getDateStr(nr.startDate);
+                let affectedDays = [resDate];
+                if (nr.isLongDuration && nr.durationDays > 1) {
+                    for (let i = 0; i < nr.durationDays; i++) affectedDays.push(addDays(resDate, i));
+                    affectedDays = [...new Set(affectedDays)];
+                }
+                if (affectedDays.includes(dateStr)) {
+                    nr.items.forEach(item => {
+                        const key = item.bikeType === 'enfant' ? 'enfant-26p' : item.bikeType;
+                        if (stock[key]) stock[key].reserved += item.quantity;
+                    });
+                }
+            });
+
+            // Résas iCloud : on compte les quantités détectées pour cette date
+            const target = new Date(dateStr + 'T00:00:00');
+            (state.data?.bookings || []).forEach(b => {
+                if (!b.start) return;
+                const d = new Date(b.start);
+                if (d.getFullYear() === target.getFullYear() &&
+                    d.getMonth() === target.getMonth() &&
+                    d.getDate() === target.getDate()) {
+                    for (const k in b.detected) {
+                        const fleetKey = toFleetKey(k);
+                        if (stock[fleetKey]) stock[fleetKey].reserved += b.detected[k];
+                    }
+                }
+            });
+
+            return stock;
+        }
+
+        async function refreshFormBadges() {
+            const stock = await computeStockForDate(getDateStr(document.getElementById('start-date').value || state.selectedDate));
+            document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => {
+                const bikeType = el.dataset.bike;
+                if (!bikeType || !stock?.[bikeType]) return;
+                const cfg = FLOTTE[bikeType];
+                if (!cfg) return;
+                const available = Math.max(0, cfg.total - stock[bikeType].reserved);
+                const indicator = el.querySelector('.stock-indicator');
+                if (indicator) {
+                    indicator.textContent = available;
+                    indicator.className = 'stock-indicator';
+                    if (available <= 0) indicator.classList.add('stock-no');
+                    else if (available <= Math.ceil(cfg.total * 0.25)) indicator.classList.add('stock-low');
+                    else indicator.classList.add('stock-ok');
+                }
+            });
+        }
+
+        function cancelEdit() {
+            document.getElementById('edit-id').value = '';
+            document.getElementById('form-title').textContent = '➕ Nouvelle réservation';
+            document.getElementById('submit-btn').textContent = '✅ Enregistrer';
+            document.getElementById('cancel-edit-btn').style.display = 'none';
+            document.getElementById('reservation-form').reset();
+            setQtyValues([]);
+            document.getElementById('long-duration').checked = false;
+            document.getElementById('duration-input').classList.remove('show');
+            const startDateInput = document.getElementById('start-date');
+            if (startDateInput) {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(9, 0, 0, 0);
+                const off = tomorrow.getTimezoneOffset() * 60000;
+                startDateInput.value = new Date(tomorrow.getTime() - off).toISOString().slice(0, 16);
+                startDateInput.min = new Date(tomorrow.getTime() - off).toISOString().slice(0, 10) + 'T08:00';
+            }
+            refreshFormBadges();
+        }
+
+        async function openReservationModal() {
+            if (!useSupabase) {
+                showToast('❌ Base non connectée', 'error');
+                return;
+            }
+            cancelEdit();
+            document.getElementById('bike-qty-grid').innerHTML = '';
+            renderBikeFormItems();
+            await refreshFormBadges();
+            document.getElementById('reservation-modal').classList.add('open');
+        }
+
+        function closeReservationModal() {
+            document.getElementById('reservation-modal').classList.remove('open');
+        }
+
+        // Gestion des résa site
+        async function loadAllSite() {
+            return state.siteReservations;
+        }
+        async function handleSiteArrived(id) {
+            const r = state.siteReservations.find(x => x.id === id);
+            if (!r) return;
+            const newStatus = r.status === 'arrived' ? null : 'arrived';
+            await updateSiteReservationStatus(id, newStatus);
+            await loadData();
+            showToast(newStatus === 'arrived' ? '✅ Venue confirmée' : 'Remis en attente', 'success');
+        }
+        async function handleSiteNoshow(id) {
+            await updateSiteReservationStatus(id, 'noshow');
+            await loadData();
+            showToast('❌ Marqué pas venu', 'info');
+        }
+        async function handleSiteDelete(id) {
+            if (!confirm('🗑️ Supprimer cette réservation ?')) return;
+            await deleteSiteReservation(id);
+            await loadData();
+            showToast('Supprimé', 'info');
+        }
+        async function handleSiteEdit(id) {
+            const r = state.siteReservations.find(x => x.id === id);
+            if (!r) return;
+            document.getElementById('edit-id').value = id;
+            document.getElementById('client-name').value = r.clientName;
+            document.getElementById('client-phone').value = r.clientPhone;
+            const d = new Date(r.startDate);
+            const offset = d.getTimezoneOffset() * 60000;
+            document.getElementById('start-date').value = new Date(d.getTime() - offset).toISOString().slice(0, 16);
+            setQtyValues(r.items);
+            if (r.isLongDuration) {
+                document.getElementById('long-duration').checked = true;
+                document.getElementById('duration-input').classList.add('show');
+                document.getElementById('duration-days').value = r.durationDays;
+                updateEndDate();
+            } else {
+                document.getElementById('long-duration').checked = false;
+                document.getElementById('duration-input').classList.remove('show');
+            }
+            document.getElementById('notes').value = r.notes || '';
+            document.getElementById('form-title').textContent = '✏️ Modifier la réservation';
+            document.getElementById('submit-btn').textContent = '💾 Enregistrer les modifications';
+            document.getElementById('cancel-edit-btn').style.display = 'block';
+            renderBikeFormItems();
+            setQtyValues(r.items);
+            await refreshFormBadges();
+            document.getElementById('reservation-modal').classList.add('open');
+        }
+
+        // ============================================================
+        // ÉDITEUR DE STOCK
+        // ============================================================
+        function openStockEditor() {
+            if (!_supabase) {
+                document.getElementById('errorBox').textContent = 'Supabase non connecté : impossible de modifier le stock.';
+                document.getElementById('errorBox').classList.remove('hidden');
+                return;
+            }
+            const fields = document.getElementById('stockEditorFields');
+            fields.innerHTML = '';
+            const stockDate = state.selectedDate || todayStr();
+            document.getElementById('stockDateBadge').textContent = stockDate;
+            const stock = state.data?.stock || {};
+            for (const t of getTypes()) {
+                const row = document.createElement('div');
+                row.className = 'stock-field-row';
+                const lbl = document.createElement('div');
+                lbl.className = 'stock-field-label';
+                lbl.textContent = (t.icon ? t.icon + ' ' : '') + t.label;
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = 0;
+                input.className = 'stock-field-input';
+                input.dataset.key = toFleetKey(t.key);
+                input.value = stock[toFleetKey(t.key)] ?? 0;
+                row.appendChild(lbl);
+                row.appendChild(input);
+                fields.appendChild(row);
+            }
+            document.getElementById('stockEditor').classList.remove('hidden');
+            document.getElementById('stockEditor').scrollIntoView({ behavior: 'smooth' });
+        }
+        async function saveStock() {
+            const inputs = document.querySelectorAll('.stock-field-input');
+            const totals = {};
+            inputs.forEach(inp => { totals[inp.dataset.key] = parseInt(inp.value, 10) || 0; });
+            const stockDate = state.selectedDate || todayStr();
+            try {
+                const { error } = await _supabase
+                    .from('fleet_history')
+                    .upsert({ date: stockDate, totals, updated_at: new Date().toISOString() }, { onConflict: 'date' });
+                if (error) throw error;
+                closeStockEditor();
+                loadData();
+            } catch (e) {
+                document.getElementById('errorBox').textContent = 'Erreur enregistrement stock : ' + e.message;
+                document.getElementById('errorBox').classList.remove('hidden');
+            }
+        }
+        function closeStockEditor() {
+            document.getElementById('stockEditor').classList.add('hidden');
+        }
+
+        // ============================================================
+        // PIN SCREEN + INIT
+        // ============================================================
+        function setupPinScreen() {
+            const overlay = document.getElementById('pin-overlay');
+            if (!overlay) { init(); return; }
+            if (localStorage.getItem(UNLOCKED_KEY) === '1') { overlay.classList.add('hidden'); init(); return; }
+            const dots = overlay.querySelectorAll('.dot');
+            const errorEl = document.getElementById('pin-error');
+            const delBtn = document.getElementById('pin-delete');
+            let pin = '';
+            function updateDots(w) {
+                dots.forEach((d, i) => {
+                    d.classList.remove('filled', 'wrong');
+                    if (i < pin.length) d.classList.add('filled');
+                    if (w) d.classList.add('wrong');
+                });
+            }
+            function clearError() { if (errorEl) errorEl.textContent = ''; }
+            overlay.addEventListener('click', (e) => {
+                const num = e.target.dataset?.num;
+                if (num !== undefined) {
+                    clearError();
+                    if (pin.length >= 4) return;
+                    pin += num;
+                    updateDots(false);
+                    if (pin.length === 4) {
+                        if (pin === PIN_CODE) {
+                            localStorage.setItem(UNLOCKED_KEY, '1');
+                            overlay.classList.add('hidden');
+                            init();
+                        } else {
+                            if (errorEl) errorEl.textContent = '❌ Code incorrect';
+                            updateDots(true);
+                            setTimeout(() => { pin = ''; updateDots(false); }, 600);
+                        }
+                    }
+                }
+                if (e.target === delBtn || e.target.closest('#pin-delete')) {
+                    clearError();
+                    pin = pin.slice(0, -1);
+                    updateDots(false);
+                }
+            });
+        }
+
+        async function init() {
+            initSupabaseClient();
+            if (_supabase) {
+                const ready = await isSupabaseReady();
+                if (ready) useSupabase = true;
+            }
+            await loadBikeTypes();
+            await syncFleetFromDB(todayStr());
+
+            document.getElementById('datePicker').addEventListener('change', (e) => {
+                state.selectedDate = e.target.value || null;
+                loadData();
+            });
+
+            // Modal
+            document.getElementById('modal-close')?.addEventListener('click', closeReservationModal);
+            document.getElementById('reservation-modal')?.addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeReservationModal();
+            });
+            document.getElementById('cancel-edit-btn')?.addEventListener('click', () => { cancelEdit(); closeReservationModal(); });
+
+            // Longue durée
+            const longDur = document.getElementById('long-duration');
+            const durInput = document.getElementById('duration-input');
+            const durDays = document.getElementById('duration-days');
+            const startDateInput = document.getElementById('start-date');
+            if (longDur && durInput) longDur.addEventListener('change', () => { durInput.classList.toggle('show', longDur.checked); updateEndDate(); });
+            if (durDays) durDays.addEventListener('input', updateEndDate);
+            if (startDateInput) startDateInput.addEventListener('change', () => {
+                const isEditing = !!document.getElementById('edit-id').value;
+                validateDate(true, isEditing);
+                updateEndDate();
+                refreshFormBadges();
+            });
+
+            // Submit
+            const form = document.getElementById('reservation-form');
+            if (form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const editId = document.getElementById('edit-id').value || null;
+                    const isEditing = !!editId;
+                    if (!validateDate(true, isEditing)) return;
+                    const name = document.getElementById('client-name').value.trim();
+                    const phone = document.getElementById('client-phone').value.trim();
+                    const startDate = startDateInput.value;
+                    const isLongDuration = longDur ? longDur.checked : false;
+                    const durationDays = isLongDuration ? (parseInt(durDays?.value) || 2) : 1;
+                    const notes = document.getElementById('notes').value.trim();
+                    if (!name || !phone || !startDate) { showToast('Remplissez tous les champs', 'error'); return; }
+                    const items = getQtyValues();
+                    if (items.length === 0) { showToast('Sélectionnez au moins un vélo', 'error'); return; }
+
+                    const dateStr = getDateStr(new Date(startDate));
+                    const stock = await computeStockForDate(dateStr);
+                    for (const item of items) {
+                        const cfg = FLOTTE[item.bikeType];
+                        if (!cfg) continue;
+                        const available = Math.max(0, cfg.total - stock[item.bikeType].reserved);
+                        if (item.quantity > available) {
+                            showToast(`⚠️ Stock insuffisant pour ${cfg.label} (reste ${available})`, 'error');
+                            return;
+                        }
+                    }
+                    let endDate = null;
+                    if (isLongDuration) {
+                        const d = new Date(startDate);
+                        d.setDate(d.getDate() + durationDays);
+                        endDate = d.toISOString();
+                    }
+                    const reservation = {
+                        clientName: name,
+                        clientPhone: phone,
+                        startDate: new Date(startDate).toISOString(),
+                        isLongDuration,
+                        durationDays,
+                        endDate,
+                        notes,
+                        deviceName: getDeviceName(),
+                    };
+                    const ok = await saveSiteReservation(reservation, items, editId);
+                    if (ok) {
+                        showToast(editId ? '✅ Réservation modifiée !' : '✅ Réservation enregistrée !', 'success');
+                        cancelEdit();
+                        closeReservationModal();
+                        await loadData();
+                    } else {
+                        showToast('❌ Erreur lors de l\'enregistrement', 'error');
+                    }
+                });
+            }
+
+            setInterval(() => { if (!document.hidden) loadData(); }, 5 * 60 * 1000);
+            await loadData();
+        }
+
+        document.addEventListener('DOMContentLoaded', setupPinScreen);
+    </script>
+</body>
+</html>
