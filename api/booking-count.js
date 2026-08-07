@@ -70,7 +70,7 @@ const DEFAULT_BIKE_TYPES = [
     { key: 'enfant-16p',     label: 'Enfant 16p',             icon: '🧒', description: '4 à 6 ans', match_keywords: ['16p','16 pouces','16pouces','16 p'], fleet_key: 'enfant-16p', is_child_size: true, sort_order: 10 },
     { key: 'enfant-20p',     label: 'Enfant 20p',             icon: '🧒', description: '6 à 8 ans', match_keywords: ['20p','20 pouces','20pouces','20 p'], fleet_key: 'enfant-20p', is_child_size: true, sort_order: 11 },
     { key: 'enfant-24p',     label: 'Enfant 24p',             icon: '🧒', description: '8 à 10 ans', match_keywords: ['24p','24 pouces','24pouces','24 p'], fleet_key: 'enfant-24p', is_child_size: true, sort_order: 12 },
-    { key: 'enfant-26p',     label: 'Enfant 26p',             icon: '🧒', description: '10 ans et +', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
+    { key: 'enfant-26p',     label: 'Enfant 26p',             icon: '🧒', description: '10 ans et +, ex : 1 26p', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
 ];
 
 /**
