@@ -32,27 +32,27 @@ Ce projet Vercel contient maintenant :
 
 ## Étape 2 — Ajouter le(s) lien(s) au projet (une seule fois, 1 minute)
 
-> Si vous avez **plusieurs calendriers** (réservations, atelier, etc.), activez le partage public sur **chacun d'eux** (répétez l'Étape 1 pour chaque calendrier) puis collez **tous les liens**, séparés par des virgules, dans une seule variable `CALENDAR_URLS`.
+> Si vous avez **plusieurs calendriers** (réservations, atelier, etc.), activez le partage public sur **chacun d'eux** (répétez l'Étape 1 pour chaque calendrier) puis collez **tous les liens**, séparés par des virgules **ou des points-virgules**, dans une seule variable `CALENDAR_URLS`.
 
 ### Sur vercel.com (recommandé) :
 1. Allez sur votre projet Vercel → **Settings** → **Environment Variables**
 2. Ajoutez :
    - **Key** : `CALENDAR_URLS`
-   - **Value** : le(s) lien(s) `webcal://...` — **plusieurs liens séparés par des virgules** :
+   - **Value** : le(s) lien(s) `webcal://...` — **plusieurs liens séparés par des virgules ou des points-virgules** :
      ```
-     webcal://p01-caldav.icloud.com/published/AAA,webcal://p01-caldav.icloud.com/published/BBB
+     webcal://p01-caldav.icloud.com/published/AAA;webcal://p01-caldav.icloud.com/published/BBB
      ```
 3. Cliquez **Save**
 4. Redéployez le projet : **Deployments** → `...` → **Redeploy**
 
-> ⚠️ Ne mettez **pas** d'espace après les virgules.
+> ⚠️ Ne mettez **pas** d'espace après les séparateurs.
 >
-> L'ancienne variable `CALENDAR_URL` (lien unique) reste supportée pour la rétro-compatibilité, mais `CALENDAR_URLS` la remplace.
+> Les deux séparateurs `,` et `;` sont acceptés. L'ancienne variable `CALENDAR_URL` (lien unique) reste supportée pour la rétro-compatibilité, mais `CALENDAR_URLS` la remplace.
 
 ### Ou en local avec le CLI Vercel :
 ```bash
 vercel env add CALENDAR_URLS
-# Collez le(s) lien(s) webcal://... (séparés par des virgules) puis validez
+# Collez le(s) lien(s) webcal://... (séparés par , ou ;) puis validez
 vercel redeploy
 ```
 
@@ -67,7 +67,7 @@ vercel redeploy
    - **Cartes de synthèse** : nb de résa, nb d'enfants, nb de vélos
    - **Détail par catégorie** : VTC, VAE, Ville, Route, Tandem, Siège, Charrette, Charrette chien, Enfants, 16p/20p/24p/26p
    - **Liste des réservations** : chaque réservation avec son résumé (« 3 vtc · 1 enfant · 1 26p »)
-3. Onglets : **Aujourd'hui** / **À venir** / **Toutes**
+3. Onglets : **Aujourd'hui** / **Demain** / **Après-demain**
 4. Rechargement automatique toutes les 5 min + bouton **⟳ Actualiser**
 
 ## Étape 4 (optionnel) — Raccourci sur l'écran d'accueil
@@ -120,8 +120,9 @@ GET https://[votre-domaine].vercel.app/api/booking-count
 | Erreur | Cause | Solution |
 |--------|-------|----------|
 | `CALENDAR_URLS non configuré` | Variable d'environnement absente | Voir Étape 2 |
-| `CALENDAR_URLS vide` | La variable contient des virgules mais aucun lien valide | Vérifiez qu'il n'y a pas d'espaces ou de virgules en trop |
+| `CALENDAR_URLS vide` | La variable contient des séparateurs mais aucun lien valide | Vérifiez qu'il n'y a pas d'espaces ou de séparateurs en trop |
+| `Impossible de télécharger le calendrier ... (HTTP 400)` | Plusieurs liens collés ensemble sans séparateur valide | Séparez les liens par `,` ou `;` (pas d'espace) |
 | `Impossible de télécharger le calendrier ... (HTTP 401)` | Un des liens publics a été révoqué ou le calendrier est privé | Réactivez « Calendrier public » pour ce calendrier et mettez à jour `CALENDAR_URLS` |
-| Les réservations d'un calendrier n'apparaissent pas | Le calendrier n'est pas dans `CALENDAR_URLS` | Ajoutez le lien du calendrier manquant (séparé par une virgule) |
+| Les réservations d'un calendrier n'apparaissent pas | Le calendrier n'est pas dans `CALENDAR_URLS` | Ajoutez le lien du calendrier manquant (séparé par `,` ou `;`) |
 | `HTTP 404` sur `/resa` | La page n'est pas déployée | Poussez `resa.html` sur votre dépôt Git puis redéployez |
-| Aucune réservation affichée | Les événements sont dans le passé ou un autre calendrier | Vérifiez l'onglet « Toutes » et que le bon calendrier est partagé |
+| Aucune réservation affichée | Les événements sont dans le passé ou un autre calendrier | Vérifiez l'onglet « Aujourd'hui » et que le bon calendrier est partagé |

@@ -6,7 +6,8 @@
  *
  * Variable d'environnement requise (Vercel → Settings → Environment Variables) :
  *   CALENDAR_URLS = liens publics des calendriers iCloud, séparés par des virgules
- *                   (ex: webcal://p01-caldav.icloud.com/published/AAA,webcal://p01-caldav.icloud.com/published/BBB)
+ *                   ou des points-virgules
+ *                   (ex: webcal://p01-caldav.icloud.com/published/AAA;webcal://p01-caldav.icloud.com/published/BBB)
  *   CALENDAR_URL  = (rétro-compatible) lien unique d'un seul calendrier
  *
  * Déploiement : ce fichier dans le dossier /api est automatiquement
@@ -110,7 +111,20 @@ function parseICSDate(str) {
 }
 
 /**
+ * Extrait un champ ICS simple (une seule ligne).
+ * Retourne la valeur nettoyée, ou null si absent.
+ */
+function getICSField(block, fieldName) {
+    const match = block.match(new RegExp(`^${fieldName}[^:]*:(.*)$`, 'm'));
+    if (!match) return null;
+    const value = match[1].trim();
+    return value.length > 0 ? value : null;
+}
+
+/**
  * Parse le contenu ICS et retourne la liste des événements non annulés.
+ * Champs extraits : summary, start, end, created (date de création),
+ * lastModified, uid, location, description, status.
  */
 function parseICS(ics) {
     // Dépliage des lignes longues (continuations débutant par espace)
@@ -122,10 +136,26 @@ function parseICS(ics) {
         if (/STATUS:CANCELLED/i.test(block)) continue;
         const summaryMatch = block.match(/^SUMMARY[^:]*:(.*)$/m);
         if (!summaryMatch) continue;
-        const startMatch = block.match(/^DTSTART[^:]*:(.*)$/m);
+
+        const startRaw = getICSField(block, 'DTSTART');
+        const endRaw = getICSField(block, 'DTEND');
+        const createdRaw = getICSField(block, 'CREATED');
+        const lastModifiedRaw = getICSField(block, 'LAST-MODIFIED');
+        const uid = getICSField(block, 'UID');
+        const location = getICSField(block, 'LOCATION');
+        const description = getICSField(block, 'DESCRIPTION');
+        const status = getICSField(block, 'STATUS');
+
         events.push({
             summary: summaryMatch[1].trim(),
-            startDate: startMatch ? parseICSDate(startMatch[1]) : null,
+            startDate: startRaw ? parseICSDate(startRaw) : null,
+            endDate: endRaw ? parseICSDate(endRaw) : null,
+            createdDate: createdRaw ? parseICSDate(createdRaw) : null,
+            lastModifiedDate: lastModifiedRaw ? parseICSDate(lastModifiedRaw) : null,
+            uid,
+            location,
+            description,
+            status,
         });
     }
     return events;
@@ -152,7 +182,7 @@ module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
 
     // Plusieurs calendriers possibles : CALENDAR_URLS séparés par des virgules
-    // (rétro-compatible avec CALENDAR_URL seul)
+    // ou des points-virgules (rétro-compatible avec CALENDAR_URL seul)
     const calendarUrlsRaw = process.env.CALENDAR_URLS || process.env.CALENDAR_URL;
     if (!calendarUrlsRaw) {
         return res.status(500).json({
@@ -161,9 +191,9 @@ module.exports = async (req, res) => {
         });
     }
 
-    // Découpe par virgules, supprime les espaces et les entrées vides
+    // Découpe par virgules OU points-virgules, supprime les espaces et les entrées vides
     const calendarUrls = calendarUrlsRaw
-        .split(',')
+        .split(/[,;]/)
         .map(u => u.trim())
         .filter(u => u.length > 0);
 
@@ -196,6 +226,13 @@ module.exports = async (req, res) => {
         const bookings = events.map(e => ({
             summary: e.summary,
             start: e.startDate ? e.startDate.toISOString() : null,
+            end: e.endDate ? e.endDate.toISOString() : null,
+            created: e.createdDate ? e.createdDate.toISOString() : null,
+            lastModified: e.lastModifiedDate ? e.lastModifiedDate.toISOString() : null,
+            uid: e.uid,
+            location: e.location,
+            description: e.description,
+            status: e.status,
             calendar: e.calendar,
             detected: processBookingText(e.summary.toLowerCase()),
         }));

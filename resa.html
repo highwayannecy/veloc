@@ -396,6 +396,31 @@
             return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
         }
 
+        /**
+         * Formate une date en incluant l'heure si disponible.
+         * Ex : "ven. 7 août · 14:00" ou "ven. 7 août"
+         */
+        function formatDateWithHour(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const datePart = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+            const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+            if (!hasTime) return datePart;
+            return datePart + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        /**
+         * Formate l'heure de fin d'un événement.
+         * Ex : "14:00" — retourne '' si absente ou si minuit.
+         */
+        function formatEndTime(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+            if (!hasTime) return '';
+            return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
         function formatSummary(detected) {
             const parts = [];
             for (const key of ORDER) {
@@ -539,14 +564,37 @@
                     item.className = 'booking-item';
 
                     const info = document.createElement('div');
+
+                    // Date + heure (fin si connue)
                     const date = document.createElement('div');
                     date.className = 'booking-date';
-                    date.textContent = formatDate(b.start);
+                    const startLabel = formatDateWithHour(b.start);
+                    const endLabel = formatEndTime(b.end);
+                    date.textContent = endLabel ? `${startLabel} – ${endLabel}` : startLabel;
+
                     const text = document.createElement('div');
                     text.className = 'booking-text';
                     text.textContent = b.summary;
                     info.appendChild(date);
                     info.appendChild(text);
+
+                    // Date de création de la réservation
+                    if (b.created) {
+                        const created = document.createElement('div');
+                        created.className = 'booking-calendar';
+                        created.textContent = '🕐 créé le ' + formatDate(b.created).replace(/^[a-zéû]+\.\s*/i, '');
+                        info.appendChild(created);
+                    }
+
+                    // Lieu si renseigné
+                    if (b.location) {
+                        const loc = document.createElement('div');
+                        loc.className = 'booking-calendar';
+                        loc.textContent = '📍 ' + b.location;
+                        info.appendChild(loc);
+                    }
+
+                    // Calendrier d'origine
                     if (b.calendar) {
                         const cal = document.createElement('div');
                         cal.className = 'booking-calendar';
