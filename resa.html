@@ -297,7 +297,7 @@
         };
 
         // Calendrier de Richard (pour l'affichage "Richard" / "Véloc")
-        const RICHARD_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
+        const VELOC_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
 
         let _supabase = null;
         let state = {
@@ -311,7 +311,7 @@
 
         function calendarName(url) {
             if (!url) return '';
-            return url === RICHARD_CALENDAR ? 'Richard' : 'Véloc';
+            return url === VELOC_CALENDAR ? 'Véloc' : 'Richard';
         }
 
         function formatDate(iso) {
