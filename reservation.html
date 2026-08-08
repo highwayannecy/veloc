@@ -187,15 +187,19 @@
 
         /* --- LISTE RÉSERVATIONS --- */
         .booking-item {
-            padding: 14px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #f1f5f9;
+        }
+        .booking-item:last-child { border-bottom: none; }
+
+        .booking-item-top {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             gap: 12px;
             position: relative;
+            padding-right: 30px;
         }
-        .booking-item:last-child { border-bottom: none; }
 
         .booking-date { font-size: 12px; font-weight: 700; color: #0052cc; margin-bottom: 3px; }
 
@@ -226,9 +230,9 @@
         }
         .booking-detail.no-bikes { background: #f8fafc; color: #94a3b8; }
 
-        /* Boutons venu / pas venu : 50 % chacun */
+        /* Boutons venu / pas venu : 50 % chacun, pleine largeur sous la carte */
         .booking-actions {
-            display: flex; gap: 6px;
+            display: flex; gap: 8px;
             margin-top: 10px;
             width: 100%;
         }
@@ -248,9 +252,9 @@
         /* Menu ⋮ en haut à droite */
         .menu-dots-btn {
             position: absolute;
-            top: 10px; right: 10px;
+            top: 0; right: 0;
             background: none; border: none;
-            font-size: 1.3rem; font-weight: 700;
+            font-size: 1.2rem; font-weight: 700;
             color: #94a3b8; cursor: pointer;
             line-height: 1; padding: 2px 6px;
             border-radius: 6px; z-index: 5;
@@ -259,7 +263,7 @@
 
         .context-menu-resa {
             position: absolute;
-            top: 34px; right: 10px;
+            top: 26px; right: 0;
             background: #fff; border: 1px solid #e2e8f0;
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.12);
@@ -482,17 +486,6 @@
 
     <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
     <button class="add-reservation-btn" onclick="openReservationModal()">➕ Nouvelle réservation</button>
-
-    <!-- Aide au staff : bien nommer les vélos -->
-    <div class="naming-tip" id="namingTip">
-        <div class="naming-tip-title">✍️ Pour bien nommer vos réservations</div>
-        <table class="naming-tip-table">
-            <thead>
-                <tr><th>Vélo</th><th>Comment le noter</th></tr>
-            </thead>
-            <tbody id="namingTipContent"></tbody>
-        </table>
-    </div>
 
     <!-- Détail par catégorie -->
     <div class="panel">
@@ -1029,22 +1022,24 @@
             return url === VELOC_CALENDAR ? 'Véloc' : 'Richard';
         }
         function formatSummaryBikes(detected) {
+            // Format uniforme : "2 VTC + 2 VAE"
             const parts = [];
             for (const t of getTypes()) {
                 if (!t.hasKeywords) continue;
                 const count = detected[t.key] || 0;
                 if (count > 0) parts.push(`${count} ${t.label}`);
             }
-            return parts.length > 0 ? parts.join(' · ') : 'Aucun vélo détecté';
+            return parts.length > 0 ? parts.join(' + ') : 'Aucun vélo détecté';
         }
         function formatSiteBikes(siteReservation) {
+            // Format uniforme : "2 VTC + 2 VAE"
             const parts = [];
             for (const item of siteReservation.items) {
                 const cfg = FLOTTE[item.bikeType] || { label: item.bikeType };
-                parts.push(`${cfg.label} ×${item.quantity}`);
+                parts.push(`${item.quantity} ${cfg.label}`);
             }
             if (siteReservation.isLongDuration) parts.push(`${siteReservation.durationDays}j`);
-            return parts.length > 0 ? parts.join(' · ') : 'Aucun vélo';
+            return parts.length > 0 ? parts.join(' + ') : 'Aucun vélo';
         }
 
         // Ferme les menus ⋮ au clic ailleurs
@@ -1167,6 +1162,10 @@
                 const item = document.createElement('div');
                 item.className = 'booking-item';
 
+                // --- LIGNE HAUTE : contenu (gauche) + détail (droite) + ⋮ ---
+                const top = document.createElement('div');
+                top.className = 'booking-item-top';
+
                 // Menu ⋮ en haut à droite (résas site uniquement)
                 if (b.origin === 'site') {
                     const dotsBtn = document.createElement('button');
@@ -1174,11 +1173,11 @@
                     dotsBtn.textContent = '⋮';
                     dotsBtn.onclick = (e) => {
                         e.stopPropagation();
-                        const menu = item.querySelector('.context-menu-resa');
+                        const menu = top.querySelector('.context-menu-resa');
                         document.querySelectorAll('.context-menu-resa.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
                         menu?.classList.toggle('open');
                     };
-                    item.appendChild(dotsBtn);
+                    top.appendChild(dotsBtn);
 
                     const menu = document.createElement('div');
                     menu.className = 'context-menu-resa';
@@ -1191,12 +1190,13 @@
                     btnDelete.onclick = () => handleSiteDelete(b.siteReservation.id);
                     menu.appendChild(btnEdit);
                     menu.appendChild(btnDelete);
-                    item.appendChild(menu);
+                    top.appendChild(menu);
                 }
 
                 // --- Contenu principal ---
                 const content = document.createElement('div');
                 content.style.flex = '1';
+                content.style.minWidth = '0';
 
                 const date = document.createElement('div');
                 date.className = 'booking-date';
@@ -1255,10 +1255,12 @@
                 const detail = document.createElement('div');
                 detail.className = 'booking-detail' + (detailText.startsWith('Aucun') ? ' no-bikes' : '');
                 detail.textContent = detailText;
-                item.appendChild(content);
-                item.appendChild(detail);
+                top.appendChild(content);
+                top.appendChild(detail);
 
-                // Boutons venu / pas venu : 50 % chacun, sur TOUTES les résas
+                item.appendChild(top);
+
+                // --- Boutons venu / pas venu : 50 % chacun, pleine largeur SOUS la carte ---
                 let status = null;
                 if (b.origin === 'apple') status = getIcloudStatus(b);
                 else status = b.siteReservation.status;
@@ -1276,12 +1278,12 @@
                     btnArrived.onclick = () => {
                         const newStatus = getIcloudStatus(b) === 'arrived' ? null : 'arrived';
                         saveIcloudStatus(b.uid, newStatus);
-                        render();
+                        loadData();
                     };
                     btnNoshow.onclick = () => {
                         const newStatus = getIcloudStatus(b) === 'noshow' ? null : 'noshow';
                         saveIcloudStatus(b.uid, newStatus);
-                        render();
+                        loadData();
                     };
                 } else {
                     btnArrived.onclick = () => handleSiteArrived(b.siteReservation.id);
@@ -1472,6 +1474,7 @@
         }
 
         // Stock restant pour une date (iCloud + site combinés)
+        // Les résas "noshow" ne réservent plus de stock (libération)
         async function computeStockForDate(dateStr) {
             const stock = {};
             FLOTTE_TYPES.forEach(t => stock[t] = { total: FLOTTE[t].total, reserved: 0 });
@@ -1479,7 +1482,7 @@
             // Résas site
             state.siteReservations.forEach(r => {
                 const nr = r;
-                if (nr.status === 'noshow') return;
+                if (nr.status === 'noshow') return; // libère le stock
                 const resDate = getDateStr(nr.startDate);
                 let affectedDays = [resDate];
                 if (nr.isLongDuration && nr.durationDays > 1) {
@@ -1494,11 +1497,12 @@
                 }
             });
 
-            // Résas iCloud — date corrigée (+2h)
+            // Résas iCloud — date corrigée (+2h), statut noshow en localStorage
             const target = new Date(dateStr + 'T00:00:00');
             (state.data?.bookings || []).forEach(b => {
                 const d = parseAppleDate(b.start);
                 if (!d) return;
+                if (getIcloudStatus(b) === 'noshow') return; // libère le stock
                 if (d.getFullYear() === target.getFullYear() &&
                     d.getMonth() === target.getMonth() &&
                     d.getDate() === target.getDate()) {
