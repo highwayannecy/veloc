@@ -144,7 +144,7 @@
         .date-arrow:hover { border-color: #0052cc; background: #eff6ff; }
         .date-arrow:active { transform: scale(0.95); }
 
-        .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+        .summary-cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
         .summary-card {
             background: #0052cc; color: #ffffff;
             border-radius: 16px;
@@ -588,18 +588,22 @@
         </div>
     </div>
 
-    <!-- Cartes de synthèse -->
+    <!-- Carte de synthèse unique -->
     <div class="summary-cards">
         <div class="summary-card">
-            <div class="label">Résa</div>
-            <div class="value" id="cardTotalValue">–</div>
-            <div class="sub" id="cardTotalSub"></div>
-        </div>
-        <div class="summary-card">
-            <div class="label">Vélos</div>
+            <div class="label">Vélos réservés</div>
             <div class="value" id="cardVelosValue">–</div>
             <div class="sub" id="cardVelosSub"></div>
         </div>
+    </div>
+
+    <!-- Tableau récapitulatif par tranche de 30 min -->
+    <div class="panel">
+        <div class="panel-title">
+            Répartition par tranche de 30 min
+            <span class="count-badge" id="slotsBadge">0</span>
+        </div>
+        <div id="slotsTable"></div>
     </div>
 
     <div class="action-row">
@@ -1210,6 +1214,93 @@
             }
         }
 
+        /**
+         * Compte le nombre de vélos d'une réservation.
+         */
+        function countBikesForBooking(b) {
+            if (b.origin === 'apple') {
+                let n = 0;
+                for (const t of getTypes()) {
+                    if (t.hasKeywords && t.key !== 'enfant') n += b.detected[t.key] || 0;
+                }
+                return n;
+            }
+            if (b.origin === 'site' && b.siteReservation) {
+                let n = 0;
+                for (const item of b.siteReservation.items) {
+                    const t = getTypes().find(x => toFleetKey(x.key) === item.bikeType);
+                    if (t && t.key !== 'enfant') n += item.quantity;
+                }
+                return n;
+            }
+            return 0;
+        }
+
+        /**
+         * Génère le tableau récapitulatif par tranche de 30 min
+         * (de 8h00 à 11h00, heure de début des réservations).
+         * Ex : "8h00 à 8h30 : 3 résa, 10 vélos"
+         */
+        function renderSlots(bookings) {
+            const container = document.getElementById('slotsTable');
+            const badge = document.getElementById('slotsBadge');
+            if (!container || !bookings) return;
+
+            // Crée les tranches de 30 min de 8h00 à 11h00
+            const slots = [];
+            for (let h = 8; h < 11; h++) {
+                slots.push({ startH: h, startM: 0 });
+                slots.push({ startH: h, startM: 30 });
+            }
+            slots.push({ startH: 11, startM: 0 });
+
+            // Comptabilise chaque résa dans sa tranche (selon heure de début)
+            const data = slots.map(s => ({ ...s, count: 0, bikes: 0 }));
+            for (const b of bookings) {
+                const d = b.origin === 'apple' ? parseAppleDate(b.start) : new Date(b.start);
+                if (!d || isNaN(d.getTime())) continue;
+                const h = d.getHours();
+                const m = d.getMinutes();
+                // Détermine la tranche correspondante dans la grille
+                let slotIdx = -1;
+                for (let i = 0; i < slots.length; i++) {
+                    const s = slots[i];
+                    const sEnd = i + 1 < slots.length ? slots[i + 1] : null;
+                    if (sEnd) {
+                        const startMin = s.startH * 60 + s.startM;
+                        const endMin = sEnd.startH * 60 + sEnd.startM;
+                        const curMin = h * 60 + m;
+                        if (curMin >= startMin && curMin < endMin) { slotIdx = i; break; }
+                    }
+                }
+                if (slotIdx === -1) slotIdx = slots.length - 1; // après 11h → dernière
+                data[slotIdx].count++;
+                data[slotIdx].bikes += countBikesForBooking(b);
+            }
+
+            // Affiche (ne garde que les tranches non vides, mais au moins une ligne)
+            const visibleSlots = data.filter(s => s.count > 0);
+            const rows = visibleSlots.length > 0 ? visibleSlots : [data[0]];
+
+            badge.textContent = bookings.length;
+
+            let html = `<table class="naming-tip-table">
+                <thead><tr><th>Tranche</th><th>Résa</th><th>Vélos</th></tr></thead>
+                <tbody>`;
+            rows.forEach(s => {
+                const next = slots[slots.indexOf(s) + 1];
+                const endLabel = next ? `${String(next.startH).padStart(2, '0')}h${String(next.startM).padStart(2, '0')}` : '11h00';
+                const startLabel = `${String(s.startH).padStart(2, '0')}h${String(s.startM).padStart(2, '0')}`;
+                html += `<tr>
+                    <td>${startLabel} à ${endLabel}</td>
+                    <td>${s.count} résa</td>
+                    <td>${s.bikes} vélos</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
         function render() {
             if (!state.data) return;
             if (!state.selectedDate) return;
@@ -1217,9 +1308,6 @@
             const bookings = getFilteredBookings();
             const totals = computeViewTotals(bookings);
             updateSelectedDateLabel();
-
-            document.getElementById('cardTotalValue').textContent = bookings.length;
-            document.getElementById('cardTotalSub').textContent = state.selectedDate;
 
             let totalVelos = 0;
             for (const b of bookings) {
@@ -1235,8 +1323,22 @@
                     }
                 }
             }
-            document.getElementById('cardVelosValue').textContent = totalVelos;
-            document.getElementById('cardVelosSub').textContent = `${bookings.length} résa`;
+
+            // Stock total disponible (somme des stocks par type)
+            let stockTotal = 0;
+            for (const t of getTypes()) {
+                const s = getStockFor(t.key);
+                if (s !== null && t.key !== 'enfant') stockTotal += s;
+            }
+            const ratio = bookings.length > 0 ? (totalVelos / bookings.length) : 0;
+
+            // Carte unique : vélos/stock + nb résa + ratio
+            document.getElementById('cardVelosValue').textContent = `${totalVelos}/${stockTotal || '–'}`;
+            document.getElementById('cardVelosSub').textContent =
+                `${bookings.length} résa · ratio ${ratio.toFixed(1)} vélos/résa`;
+
+            // Tableau par tranche de 30 min
+            renderSlots(bookings);
 
             document.getElementById('detailBadge').textContent = bookings.length;
             document.getElementById('bookingsBadge').textContent = bookings.length;
