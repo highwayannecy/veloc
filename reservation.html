@@ -693,6 +693,7 @@
             anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdHZ4Z3VwY2ZzY2R6am9yeHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDEyNDEsImV4cCI6MjA5OTc3NzI0MX0.V4VT_xHbquzA-IeL3YOFEJYVrrcnaV9QmI-dRSiFHb8'
         };
         const VELOC_CALENDAR = 'webcal://p403-caldav.icloud.com/published/2/MjI0NTc2MDQ2MDUyMjQ1Nw8vDsOnYxsDifJmJzuTrrumhP97_fvNWjc4L_Y6hyTbQKqJSJ1ovZd9GaWhK66TWlpFuYmlwEwAVXt2I0HL-ls';
+        const MAXENCE_CALENDAR = 'webcal://p124-caldav.icloud.com/published/2/MTYyMjE5OTc3OTcxNjIyMZjXdsMrAukRQ1t7KwEc3TYCnLqzMNKsGh4NBl8tlY2Y';
         const PIN_CODE = '3300';
         const UNLOCKED_KEY = 'veloc_admin_unlocked';
         const DEVICE_NAME_KEY = 'veloc_device_name';
@@ -1136,7 +1137,9 @@
         // ============================================================
         function calendarName(url) {
             if (!url) return '';
-            return url === VELOC_CALENDAR ? 'Véloc' : 'Richard';
+            if (url === VELOC_CALENDAR) return 'Véloc';
+            if (url === MAXENCE_CALENDAR) return 'Maxence';
+            return 'Richard';
         }
         function formatSummaryBikes(detected) {
             // Format uniforme : "2 VTC + 2 VAE"
