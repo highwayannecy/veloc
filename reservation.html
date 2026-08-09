@@ -326,6 +326,18 @@
         .context-menu-resa button:hover { background: #f8fafc; }
         .context-menu-resa .menu-danger { color: #ef4444; }
 
+        /* Fond selon le statut : "pas venu" légèrement rouge, "venu" légèrement vert */
+        .booking-item.status-noshow {
+            background: #fef2f2;
+            border-radius: 12px;
+            padding: 12px;
+        }
+        .booking-item.status-arrived {
+            background: #f0fdf4;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
         .empty-state { text-align: center; padding: 30px 16px; color: #94a3b8; font-size: 14px; }
 
         .footer-note { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 30px; line-height: 1.6; }
@@ -1075,6 +1087,8 @@
             if (!target) return [];
 
             // 1) Résas iCloud — date corrigée (+2h)
+            //    Les résas "pas venu" RESTENT affichées (fond rouge) mais leur
+            //    quantité est ignorée dans les totaux (géré dans computeViewTotals).
             const apple = (state.data?.bookings || [])
                 .filter(b => {
                     const d = parseAppleDate(b.start);
@@ -1083,14 +1097,12 @@
                            d.getMonth() === target.getMonth() &&
                            d.getDate() === target.getDate();
                 })
-                // Exclut les résas marquées "pas venu" (localStorage)
-                .filter(b => getIcloudStatus(b) !== 'noshow')
                 .map(b => ({ ...b, origin: 'apple' }));
 
             // 2) Résas site (Supabase), incluant longue durée
-            //    Exclut les résas "pas venu" pour ne plus compter leur quantité
+            //    Les résas "pas venu" RESTENT affichées (fond rouge) mais leur
+            //    quantité est ignorée dans les totaux (géré dans computeViewTotals).
             const site = state.siteReservations
-                .filter(r => r.status !== 'noshow')
                 .filter(r => {
                     const resDate = getDateStr(r.startDate);
                     if (resDate === state.selectedDate) return true;
@@ -1115,6 +1127,7 @@
             const totals = {};
             for (const t of getTypes()) totals[t.key] = 0;
             for (const b of bookings) {
+                if (isBookingNoShow(b)) continue; // noshow : quantité non comptée
                 if (b.origin === 'apple') {
                     for (const k in b.detected) {
                         if (totals[k] !== undefined) totals[k] += b.detected[k];
@@ -1129,6 +1142,7 @@
                 }
             }
             for (const b of bookings) {
+                if (isBookingNoShow(b)) continue; // noshow : quantité non comptée
                 const kids = {};
                 if (b.origin === 'apple') {
                     for (const k in b.detected) kids[k] = b.detected[k];
@@ -1217,9 +1231,19 @@
         }
 
         /**
+         * Vrai si la réservation est marquée "pas venu".
+         */
+        function isBookingNoShow(b) {
+            if (b.origin === 'apple') return getIcloudStatus(b) === 'noshow';
+            return (b.siteReservation?.status || null) === 'noshow';
+        }
+
+        /**
          * Compte le nombre de vélos d'une réservation.
+         * Renvoie 0 si la résa est "pas venu" (sa quantité ne compte plus).
          */
         function countBikesForBooking(b) {
+            if (isBookingNoShow(b)) return 0;
             if (b.origin === 'apple') {
                 let n = 0;
                 for (const t of getTypes()) {
@@ -1311,17 +1335,7 @@
 
             let totalVelos = 0;
             for (const b of bookings) {
-                if (b.origin === 'apple') {
-                    for (const t of getTypes()) {
-                        if (t.hasKeywords && t.key !== 'enfant') totalVelos += b.detected[t.key] || 0;
-                    }
-                } else if (b.origin === 'site' && b.siteReservation) {
-                    for (const item of b.siteReservation.items) {
-                        const t = getTypes().find(x => toFleetKey(x.key) === item.bikeType);
-                        const key = t ? t.key : item.bikeType;
-                        if (key !== 'enfant') totalVelos += item.quantity;
-                    }
-                }
+                totalVelos += countBikesForBooking(b); // gère noshow (0) + exclut enfant
             }
 
             // Stock total disponible (somme des stocks par type)
@@ -1412,6 +1426,11 @@
             bookings.forEach(b => {
                 const item = document.createElement('div');
                 item.className = 'booking-item';
+
+                // Applique la classe de statut (fond coloré) sans retirer la résa
+                const bStatus = b.origin === 'apple' ? getIcloudStatus(b) : (b.siteReservation?.status || null);
+                if (bStatus === 'noshow') item.classList.add('status-noshow');
+                else if (bStatus === 'arrived') item.classList.add('status-arrived');
 
                 // --- LIGNE HAUTE : contenu (gauche) + détail (droite) + ⋮ ---
                 const top = document.createElement('div');
