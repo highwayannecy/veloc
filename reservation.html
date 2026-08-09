@@ -640,11 +640,11 @@
             return parts.join(' · ');
         }
 
-        // Décalage iCloud : les dates du calendrier Apple arrivent décalées de 2h
-        const ICLOUD_OFFSET_MS = 2 * 60 * 60 * 1000;
+        // L'API renvoie désormais les dates iCloud avec un instant UTC correct
+        // (interprétation Europe/Paris côté serveur). Aucun décalage client requis.
         function parseAppleDate(iso) {
             if (!iso) return null;
-            return new Date(new Date(iso).getTime() + ICLOUD_OFFSET_MS);
+            return new Date(iso);
         }
         function formatAppleDate(iso) {
             if (!iso) return '';
