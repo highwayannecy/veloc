@@ -352,15 +352,20 @@
         }
         .stock-field-input:focus { outline: none; border-color: #0052cc; background: #eff6ff; }
 
-        /* --- LIGNE DE BOUTONS (Actualiser / Nouvelle / Paramètres) --- */
+        /* --- ZONE DE BOUTONS --- */
         .action-row {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 10px;
             margin-bottom: 20px;
         }
-        .action-row .refresh-btn,
-        .action-row .add-reservation-btn {
+        /* Ligne du haut : Actualiser + Paramètres */
+        .action-top-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .action-top-row .refresh-btn {
             flex: 1;
             margin: 0;
             height: 54px;
@@ -368,18 +373,29 @@
             align-items: center;
             justify-content: center;
         }
+        /* Paramètres : bouton rectangulaire sur la même ligne qu'Actualiser */
         .settings-btn {
-            width: 54px;
             height: 54px;
+            padding: 0 18px;
             flex-shrink: 0;
             border: none; border-radius: 14px;
             background: #e2e8f0; color: #334155;
-            font-size: 22px; font-weight: 700; cursor: pointer;
+            font-size: 16px; font-weight: 700; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
+            gap: 6px;
             transition: all 0.15s;
         }
         .settings-btn:hover { background: #cbd5e1; color: #0f172a; }
         .settings-btn:active { transform: scale(0.95); }
+        /* Nouvelle réservation : pleine largeur, en dessous */
+        .action-row .add-reservation-btn {
+            width: 100%;
+            margin: 0;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
         /* --- BOUTON + NOUVELLE --- */
         .add-reservation-btn {
@@ -552,9 +568,11 @@
     </div>
 
     <div class="action-row">
-        <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
+        <div class="action-top-row">
+            <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
+            <button class="settings-btn" onclick="openSettings()" title="Paramètres">⚙️ Paramètres</button>
+        </div>
         <button class="add-reservation-btn" onclick="openReservationModal()">➕ Nouvelle réservation</button>
-        <button class="settings-btn" onclick="openSettings()" title="Paramètres">⚙️</button>
     </div>
 
     <!-- Détail par catégorie -->
