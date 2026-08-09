@@ -1429,7 +1429,10 @@
                     document.getElementById('datePicker').value = state.selectedDate;
                 }
                 state.siteReservations = await loadSiteReservations();
+                // Charge le stock pour la date SÉLECTIONNÉE (pas la date du jour serveur)
                 await syncFleetFromDB(state.selectedDate);
+                // syncFleetFromDB remplit _fleet → on l'utilise comme stock affiché
+                state.data.stock = _fleet;
                 document.getElementById('updatedText').textContent =
                     `Mis à jour le ${new Date(state.data.generatedAt).toLocaleString('fr-FR')}`;
                 render();
