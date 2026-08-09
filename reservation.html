@@ -222,11 +222,15 @@
         .booking-detail {
             font-size: 13px; color: #0f172a; font-weight: 700;
             text-align: right;
-            white-space: nowrap;
+            /* Pas de nowrap : le texte passe à la ligne proprement au lieu de déborder */
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
             background: #eff6ff;
             border-radius: 8px;
             padding: 6px 10px;
             max-width: 55%;
+            flex-shrink: 0;
         }
         .booking-detail.no-bikes { background: #f8fafc; color: #94a3b8; }
 
@@ -1210,7 +1214,7 @@
                 if (b.origin === 'apple') {
                     const origin = document.createElement('span');
                     origin.className = 'badge origin-apple';
-                    origin.textContent = '📅 Calendrier';
+                    origin.textContent = '📅 ' + calendarName(b.calendar);
                     meta.appendChild(origin);
                     if (b.created) {
                         const created = document.createElement('span');

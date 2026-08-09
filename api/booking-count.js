@@ -68,19 +68,19 @@ function escapeRegex(str) {
  * Miroir de la table bike_types de SUPABASE_SETUP.sql.
  */
 const DEFAULT_BIKE_TYPES = [
-    { key: 'enfant',         label: 'Enfants (total équipe)', icon: '🧒', description: 'Synthèse automatique : somme des tailles enfants', match_keywords: [], fleet_key: 'enfant', is_child_size: false, sort_order: 14 },
+    { key: 'enfant',         label: 'Enfants (total)', icon: '🧒', description: 'Synthèse automatique : somme des tailles enfants', match_keywords: [], fleet_key: 'enfant', is_child_size: false, sort_order: 14 },
     { key: 'vae',            label: 'VAE',                    icon: '⚡', description: 'ex : 1 vae', match_keywords: ['vae','électrique','electrique','ebike','elec'], fleet_key: 'vae', is_child_size: false, sort_order: 2 },
     { key: 'vtc',            label: 'VTC',                    icon: '🚲', description: 'ex : 1 vtc', match_keywords: ['vtc','classique','mecanique','mécanique'], fleet_key: 'vtc', is_child_size: false, sort_order: 3 },
     { key: 'ville',          label: 'Ville',                  icon: '🏙️', description: 'ex : 1 ville', match_keywords: ['ville'], fleet_key: 'ville', is_child_size: false, sort_order: 4 },
     { key: 'route',          label: 'Route',                  icon: '🏁', description: 'ex : 1 route', match_keywords: ['route'], fleet_key: 'route', is_child_size: false, sort_order: 5 },
     { key: 'tandem',         label: 'Tandem',                 icon: '👫', description: 'ex : 1 tandem', match_keywords: ['tandem'], fleet_key: 'tandem', is_child_size: false, sort_order: 6 },
-    { key: 'siege',          label: 'Siège bébé',             icon: '🍼', description: 'ex : 1 siège', match_keywords: ['siege','siège','siege enfant','siège enfant','siege bebe','siège bébé','bebe','bébé'], fleet_key: 'siege', is_child_size: false, sort_order: 7 },
+    { key: 'siege',          label: 'Siège',             icon: '🍼', description: 'ex : 1 siège', match_keywords: ['siege','siège','siege enfant','siège enfant','siege bebe','siège bébé','bebe','bébé'], fleet_key: 'siege', is_child_size: false, sort_order: 7 },
     { key: 'charretteChien', label: 'Charrette chien',        icon: '🐕', description: 'ex : 1 chien', match_keywords: ['charrette chien','charrettes chien','remorque chien'], fleet_key: 'charretteChien', is_child_size: false, sort_order: 8 },
-    { key: 'charrette',      label: 'Charrette / Remorque',   icon: '🛞', description: 'ex : 1 charrette', match_keywords: ['charrette','charrettes','charette','carette','remorque'], fleet_key: 'charrette', is_child_size: false, sort_order: 9 },
-    { key: 'enfant-16p',     label: 'Enfant 16p',             icon: '🧒', description: '4 à 6 ans, ex : 1 16p', match_keywords: ['16p','16 pouces','16pouces','16 p'], fleet_key: 'enfant-16p', is_child_size: true, sort_order: 10 },
-    { key: 'enfant-20p',     label: 'Enfant 20p',             icon: '🧒', description: '6 à 8 ans, ex : 1 20p', match_keywords: ['20p','20 pouces','20pouces','20 p'], fleet_key: 'enfant-20p', is_child_size: true, sort_order: 11 },
-    { key: 'enfant-24p',     label: 'Enfant 24p',             icon: '🧒', description: '8 à 10 ans, ex : 1 24p', match_keywords: ['24p','24 pouces','24pouces','24 p'], fleet_key: 'enfant-24p', is_child_size: true, sort_order: 12 },
-    { key: 'enfant-26p',     label: 'Enfant 26p',             icon: '🧒', description: '10 ans et +, ex : 1 26p', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
+    { key: 'charrette',      label: 'Charrette',   icon: '🛞', description: 'ex : 1 charrette', match_keywords: ['charrette','charrettes','charette','carette','remorque'], fleet_key: 'charrette', is_child_size: false, sort_order: 9 },
+    { key: 'enfant-16p',     label: '16p',             icon: '🧒', description: '4 à 6 ans, ex : 1 16p', match_keywords: ['16p','16 pouces','16pouces','16 p'], fleet_key: 'enfant-16p', is_child_size: true, sort_order: 10 },
+    { key: 'enfant-20p',     label: '20p',             icon: '🧒', description: '6 à 8 ans, ex : 1 20p', match_keywords: ['20p','20 pouces','20pouces','20 p'], fleet_key: 'enfant-20p', is_child_size: true, sort_order: 11 },
+    { key: 'enfant-24p',     label: '24p',             icon: '🧒', description: '8 à 10 ans, ex : 1 24p', match_keywords: ['24p','24 pouces','24pouces','24 p'], fleet_key: 'enfant-24p', is_child_size: true, sort_order: 12 },
+    { key: 'enfant-26p',     label: '26p',             icon: '🧒', description: '10 ans et +, ex : 1 26p', match_keywords: ['26p','26 pouces','26pouces','26 p'], fleet_key: 'enfant-26p', is_child_size: true, sort_order: 13 },
 ];
 
 /**
@@ -186,12 +186,39 @@ function detectText(text, types) {
 // ============================================================
 
 /**
- * Parse une date ICS (DTSTART) en objet Date JS.
+ * Dernier dimanche d'un mois donné (en UTC).
+ */
+function lastSundayUTC(year, monthIndex) {
+    const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0));
+    const day = lastDay.getUTCDay(); // 0 = dimanche
+    return new Date(Date.UTC(year, monthIndex, lastDay.getUTCDate() - day));
+}
+
+/**
+ * Décalage Europe/Paris (minutes) pour une date locale donnée.
+ * Été (fin mars → fin octobre) : UTC+2. Hiver : UTC+1.
+ */
+function parisOffsetMinutes(y, mo, d) {
+    const startDst = lastSundayUTC(y, 2);  // dernier dimanche de mars
+    const endDst = lastSundayUTC(y, 9);    // dernier dimanche d'octobre
+    const ts = Date.UTC(y, mo, d);
+    return (ts >= startDst.getTime() && ts < endDst.getTime()) ? 120 : 60;
+}
+
+/**
+ * Parse une date ICS (DTSTART) en objet Date JS (instant UTC correct).
+ *
+ * - Date avec "Z" (UTC explicite) → interprétée en UTC.
+ * - Date SANS fuseau (flottante, cas des calendriers iCloud) → interprétée
+ *   comme heure locale Europe/Paris (UTC+2 en été, UTC+1 en hiver).
+ *   L'instant UTC renvoyé est alors correct quel que soit le fuseau du serveur.
  */
 function parseICSDate(str) {
     if (!str) return null;
     const colonIdx = str.indexOf(':');
-    const value = colonIdx >= 0 ? str.slice(colonIdx + 1) : str;
+    let value = colonIdx >= 0 ? str.slice(colonIdx + 1) : str;
+    const hasZ = /Z$/.test(value);
+    value = value.replace(/Z$/, '');
     const isAllDay = /^\d{8}$/.test(value);
     let y, mo, d, h = 0, mi = 0, s = 0;
     if (isAllDay) {
@@ -199,16 +226,22 @@ function parseICSDate(str) {
         mo = +value.slice(4, 6) - 1;
         d = +value.slice(6, 8);
     } else {
-        const main = value.replace(/Z$/, '');
-        if (main.length < 15) return null;
-        y = +main.slice(0, 4);
-        mo = +main.slice(4, 6) - 1;
-        d = +main.slice(6, 8);
-        h = +main.slice(9, 11) || 0;
-        mi = +main.slice(11, 13) || 0;
-        s = +main.slice(13, 15) || 0;
+        if (value.length < 15) return null;
+        y = +value.slice(0, 4);
+        mo = +value.slice(4, 6) - 1;
+        d = +value.slice(6, 8);
+        h = +value.slice(9, 11) || 0;
+        mi = +value.slice(11, 13) || 0;
+        s = +value.slice(13, 15) || 0;
     }
-    const date = new Date(y, mo, d, h, mi, s);
+
+    let date;
+    if (hasZ) {
+        date = new Date(Date.UTC(y, mo, d, h, mi, s));
+    } else {
+        // Heure locale flottante → heure Europe/Paris
+        date = new Date(Date.UTC(y, mo, d, h, mi, s) - parisOffsetMinutes(y, mo, d) * 60000);
+    }
     return isNaN(date.getTime()) ? null : date;
 }
 

@@ -61,19 +61,19 @@ INSERT INTO bike_types (key, label, icon, description, default_total, match_keyw
     -- "enfant" est une SYNTHÈSE calculée automatiquement (somme des is_child_size).
     -- Il n'a pas de mots-clés propres et n'est pas lui-même is_child_size,
     -- sinon il serait additionné à lui-même (double comptage).
-    ('enfant',         'Enfants (total équipe)', '🧒',  'Synthèse automatique : somme des tailles enfants', 2,   '{}',                    'enfant',                 FALSE, FALSE, 14),
+    ('enfant',         'Enfants (total)', '🧒',  'Synthèse automatique : somme des tailles enfants', 2,   '{}',                    'enfant',                 FALSE, FALSE, 14),
     ('vae',            'VAE',                   '⚡',  'ex : 1 vae', 70, '{vae, électrique, electrique, ebike, elec}',                              'vae',                     FALSE, FALSE, 2),
     ('vtc',            'VTC',                   '🚲',  'ex : 1 vtc', 70, '{vtc, classique, mecanique, mécanique}',                                    'vtc',                     FALSE, FALSE, 3),
     ('ville',          'Ville',                 '🏙️', 'ex : 1 ville', 10, '{ville}',                                                                  'ville',                   FALSE, FALSE, 4),
     ('route',          'Route',                 '🏁',  'ex : 1 route', 5,  '{route}',                                                                  'route',                   FALSE, FALSE, 5),
     ('tandem',         'Tandem',                '👫',  'ex : 1 tandem', 1,  '{tandem}',                                                                 'tandem',                  FALSE, FALSE, 6),
-    ('siege',          'Siège bébé',            '🍼',  'ex : 1 siège', 7,  '{siege, siège, siege enfant, siège enfant, siege bebe, siège bébé, bebe, bébé, porte}', 'siege', FALSE, FALSE, 7),
+    ('siege',          'Siège',            '🍼',  'ex : 1 siège', 7,  '{siege, siège, siege enfant, siège enfant, siege bebe, siège bébé, bebe, bébé, porte}', 'siege', FALSE, FALSE, 7),
     ('charretteChien', 'Charrette chien',       '🐕',  'ex : 1 chien', 1,  '{charrette chien, charrettes chien, remorque chien}',                       'charretteChien',          FALSE, FALSE, 8),
-    ('charrette',      'Charrette / Remorque',  '🛞',  'ex : 1 charrette', 3,  '{charrette, charrettes, charette, carette, remorque}',                       'charrette',               FALSE, FALSE, 9),
-    ('enfant-16p',     'Enfant 16p',            '🧒',  '4 à 6 ans, ex : 1 16p', 1,  '{16p, 16 pouces, 16pouces, 16 p, 16 pouce, 16pouce}',                                 'enfant-16p',              TRUE,  FALSE, 10),
-    ('enfant-20p',     'Enfant 20p',            '🧒',  '6 à 8 ans, ex : 1 20p', 2,  '{20p, 20 pouces, 20pouces, 20 p, 20 pouce, 20pouce}',                                 'enfant-20p',              TRUE,  FALSE, 11),
-    ('enfant-24p',     'Enfant 24p',            '🧒',  '8 à 10 ans, ex : 1 24p', 2,  '{24p, 24 pouces, 24pouces, 24 p, 24 pouce, 24pouce}',                               'enfant-24p',              TRUE,  FALSE, 12),
-    ('enfant-26p',     'Enfant 26p',            '🧒',  '10 ans et +, ex : 1 26p', 2,  '{26p, 26 pouces, 26pouces, 26 p, 26 pouce, 26pouce}',                               'enfant-26p',              TRUE,  FALSE, 13);
+    ('charrette',      'Charrette',  '🛞',  'ex : 1 charrette', 3,  '{charrette, charrettes, charette, carette, remorque}',                       'charrette',               FALSE, FALSE, 9),
+    ('enfant-16p',     '16p',            '🧒',  '4 à 6 ans, ex : 1 16p', 1,  '{16p, 16 pouces, 16pouces, 16 p, 16 pouce, 16pouce}',                                 'enfant-16p',              TRUE,  FALSE, 10),
+    ('enfant-20p',     '20p',            '🧒',  '6 à 8 ans, ex : 1 20p', 2,  '{20p, 20 pouces, 20pouces, 20 p, 20 pouce, 20pouce}',                                 'enfant-20p',              TRUE,  FALSE, 11),
+    ('enfant-24p',     '24p',            '🧒',  '8 à 10 ans, ex : 1 24p', 2,  '{24p, 24 pouces, 24pouces, 24 p, 24 pouce, 24pouce}',                               'enfant-24p',              TRUE,  FALSE, 12),
+    ('enfant-26p',     '26p',            '🧒',  '10 ans et +, ex : 1 26p', 2,  '{26p, 26 pouces, 26pouces, 26 p, 26 pouce, 26pouce}',                               'enfant-26p',              TRUE,  FALSE, 13);
 
 -- Table flotte avec historique : une ligne par date, JSONB pour les totaux
 CREATE TABLE fleet_history (
