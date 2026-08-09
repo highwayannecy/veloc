@@ -1666,12 +1666,13 @@
             document.getElementById('duration-input').classList.remove('show');
             const startDateInput = document.getElementById('start-date');
             if (startDateInput) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(9, 0, 0, 0);
-                const off = tomorrow.getTimezoneOffset() * 60000;
-                startDateInput.value = new Date(tomorrow.getTime() - off).toISOString().slice(0, 16);
-                startDateInput.min = new Date(tomorrow.getTime() - off).toISOString().slice(0, 10) + 'T08:00';
+                // Date par défaut = date sélectionnée dans le date picker (ou demain si non définie)
+                const base = state.selectedDate ? new Date(state.selectedDate + 'T09:00:00') : new Date();
+                if (!state.selectedDate) base.setDate(base.getDate() + 1); // demain si rien sélectionné
+                base.setHours(9, 0, 0, 0);
+                const off = base.getTimezoneOffset() * 60000;
+                startDateInput.value = new Date(base.getTime() - off).toISOString().slice(0, 16);
+                startDateInput.min = new Date(base.getTime() - off).toISOString().slice(0, 10) + 'T08:00';
             }
             refreshFormBadges();
         }
