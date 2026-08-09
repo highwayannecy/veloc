@@ -570,7 +570,7 @@
     <div class="action-row">
         <div class="action-top-row">
             <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
-            <button class="settings-btn" onclick="openSettings()" title="Paramètres">⚙️ Paramètres</button>
+            <button class="settings-btn" onclick="openSettings()" title="Paramètres">⚙️</button>
         </div>
         <button class="add-reservation-btn" onclick="openReservationModal()">➕ Nouvelle réservation</button>
     </div>
@@ -1334,7 +1334,7 @@
                     if (b.siteReservation.deviceName) {
                         const device = document.createElement('span');
                         device.className = 'badge meta';
-                        device.textContent = '💻 ' + b.siteReservation.deviceName;
+                        device.textContent = '🌐 ' + b.siteReservation.deviceName;
                         meta.appendChild(device);
                     }
                     // Même pattern que Apple : "créé le ..."
