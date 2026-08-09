@@ -352,6 +352,35 @@
         }
         .stock-field-input:focus { outline: none; border-color: #0052cc; background: #eff6ff; }
 
+        /* --- LIGNE DE BOUTONS (Actualiser / Nouvelle / Paramètres) --- */
+        .action-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .action-row .refresh-btn,
+        .action-row .add-reservation-btn {
+            flex: 1;
+            margin: 0;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-btn {
+            width: 54px;
+            height: 54px;
+            flex-shrink: 0;
+            border: none; border-radius: 14px;
+            background: #e2e8f0; color: #334155;
+            font-size: 22px; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+        }
+        .settings-btn:hover { background: #cbd5e1; color: #0f172a; }
+        .settings-btn:active { transform: scale(0.95); }
+
         /* --- BOUTON + NOUVELLE --- */
         .add-reservation-btn {
             display: block; width: 100%;
@@ -522,8 +551,11 @@
         </div>
     </div>
 
-    <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
-    <button class="add-reservation-btn" onclick="openReservationModal()">➕ Nouvelle réservation</button>
+    <div class="action-row">
+        <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
+        <button class="add-reservation-btn" onclick="openReservationModal()">➕ Nouvelle réservation</button>
+        <button class="settings-btn" onclick="openSettings()" title="Paramètres">⚙️</button>
+    </div>
 
     <!-- Détail par catégorie -->
     <div class="panel">
@@ -1086,6 +1118,24 @@
                 document.querySelectorAll('.context-menu-resa.open').forEach(m => m.classList.remove('open'));
             }
         });
+
+        /**
+         * Paramètres : permet de changer le nom de l'appareil utilisé
+         * (affiché sur les réservations prises via ce poste).
+         */
+        function openSettings() {
+            const current = getDeviceName();
+            const newName = prompt('Nom de l\'appareil (affiché sur les réservations) :', current);
+            if (newName === null) return; // annulé
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                showToast('Le nom ne peut pas être vide', 'error');
+                return;
+            }
+            localStorage.setItem(DEVICE_NAME_KEY, trimmed);
+            showToast('💻 Nom de l\'appareil mis à jour : ' + trimmed, 'success');
+            loadData();
+        }
 
         function updateSelectedDateLabel() {
             const el = document.getElementById('selectedDateLabel');
