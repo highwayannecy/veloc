@@ -443,30 +443,54 @@
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         @media (max-width: 400px) { .form-row { grid-template-columns: 1fr; } }
 
-        .bike-qty-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 8px 0 4px 0; }
-        .bike-qty-item {
-            display: flex; align-items: center; gap: 3px;
-            background: #f8fafc; border-radius: 6px; padding: 4px 6px;
-            border: 1px solid #e2e8f0;
+        /* Types de vélos dans la popup : empilés, pleine largeur, tactiles */
+        .bike-qty-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 8px 0 4px 0;
         }
-        .bike-qty-item .bike-icon { font-size: 0.9rem; min-width: 18px; text-align: center; }
-        .bike-qty-item .bike-name { font-size: 0.7rem; font-weight: 600; color: #1e293b; }
-        .bike-qty-item .qty-control { display: flex; align-items: center; gap: 0; margin-left: auto; }
+        /* Design B : carte deux lignes — rangée principale puis description EN DESSOUS */
+        .bike-qty-item {
+            display: block;
+            background: #f8fafc; border-radius: 14px; padding: 14px 16px;
+            border: 1px solid #e2e8f0; width: 100%;
+        }
+        .bike-qty-item .bike-main-row {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .bike-qty-item .bike-icon { font-size: 1.4rem; min-width: 32px; text-align: center; flex-shrink: 0; }
+        .bike-qty-item .bike-name { font-size: 1rem; font-weight: 700; color: #1e293b; line-height: 1.3; flex: 1; min-width: 0; }
+        /* Rangée du bas : description (gauche) + stock disponible (droite) */
+        .bike-qty-item .bike-desc-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 6px;
+            padding-left: 44px; /* aligné sous le nom (après l'icône) */
+        }
+        .bike-qty-item .bike-desc {
+            font-size: 0.9rem; color: #64748b; line-height: 1.3;
+            flex: 1; min-width: 0;
+        }
+        .bike-qty-item .qty-control { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
         .bike-qty-item .qty-btn {
-            width: 22px; height: 22px; border: 1px solid #e2e8f0; background: #fff;
-            border-radius: 4px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+            width: 44px; height: 44px; border: none; background: #0052cc; color: #fff;
+            border-radius: 12px; font-size: 1.3rem; font-weight: 800; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             line-height: 1; padding: 0; transition: all 0.1s;
         }
-        .bike-qty-item .qty-btn:hover { background: #0052cc; color: #fff; border-color: #0052cc; }
-        .bike-qty-item .qty-btn:active { transform: scale(0.95); }
+        .bike-qty-item .qty-btn:hover { background: #003b99; }
+        .bike-qty-item .qty-btn:disabled { background: #cbd5e1; color: #94a3b8; }
+        .bike-qty-item .qty-btn:active { transform: scale(0.92); }
         .bike-qty-item .qty-value {
-            width: 26px; text-align: center; font-weight: 700; font-size: 0.8rem;
-            border: none; background: transparent; padding: 0;
+            width: 40px; text-align: center; font-weight: 800; font-size: 1.3rem;
+            border: none; background: transparent; padding: 0; color: #0f172a;
         }
         .bike-qty-item .stock-indicator {
-            font-size: 0.55rem; font-weight: 600; padding: 1px 4px;
-            border-radius: 50px; white-space: nowrap; margin-left: 2px;
+            font-size: 0.8rem; font-weight: 700; padding: 4px 12px;
+            border-radius: 50px; white-space: nowrap;
         }
         .stock-ok { background: #d1fae5; color: #065f46; }
         .stock-low { background: #fef3c7; color: #92400e; }
@@ -1459,15 +1483,19 @@
                 const cfg = FLOTTE[t];
                 const desc = _bikeTypes.find(x => x.key === t)?.description || '';
                 html += `<div class="bike-qty-item" data-bike="${t}" title="${escapeHtml(desc)}">
-                    <span class="bike-icon">${cfg.icon}</span>
-                    <span class="bike-name">${cfg.label}</span>
-                    ${desc ? `<span style="font-size:0.55rem;color:#64748b;">${escapeHtml(desc)}</span>` : ''}
-                    <div class="qty-control">
-                        <button type="button" class="qty-btn qty-minus">−</button>
-                        <input type="text" class="qty-value" value="0" readonly>
-                        <button type="button" class="qty-btn qty-plus">+</button>
+                    <div class="bike-main-row">
+                        <span class="bike-icon">${cfg.icon}</span>
+                        <span class="bike-name">${cfg.label}</span>
+                        <div class="qty-control">
+                            <button type="button" class="qty-btn qty-minus">−</button>
+                            <input type="text" class="qty-value" value="0" readonly>
+                            <button type="button" class="qty-btn qty-plus">+</button>
+                        </div>
                     </div>
-                    <span class="stock-indicator stock-ok">${cfg.total}</span>
+                    <div class="bike-desc-row">
+                        <div class="bike-desc">${escapeHtml(desc)}</div>
+                        <span class="stock-indicator stock-ok">${cfg.total}</span>
+                    </div>
                 </div>`;
             });
             grid.innerHTML = html;
