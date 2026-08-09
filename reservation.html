@@ -103,6 +103,36 @@
         }
         input[type="date"]:focus { border-color: #0052cc; background: #eff6ff; }
 
+        .date-picker-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .date-picker-row input[type="date"] {
+            flex: 1;
+            max-width: 300px;
+        }
+        .date-arrow {
+            width: 48px;
+            height: 48px;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            background: #ffffff;
+            color: #0052cc;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+        .date-arrow:hover { border-color: #0052cc; background: #eff6ff; }
+        .date-arrow:active { transform: scale(0.95); }
+
         .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
         .summary-card {
             background: #0052cc; color: #ffffff;
@@ -471,7 +501,11 @@
     <!-- DATE PICKER -->
     <div class="date-picker-block">
         <div class="selected-date-label" id="selectedDateLabel">–</div>
-        <input type="date" id="datePicker">
+        <div class="date-picker-row">
+            <button class="date-arrow" id="datePrev" type="button" aria-label="Jour précédent">◀</button>
+            <input type="date" id="datePicker">
+            <button class="date-arrow" id="dateNext" type="button" aria-label="Jour suivant">▶</button>
+        </div>
     </div>
 
     <!-- Cartes de synthèse -->
@@ -1737,6 +1771,18 @@
                 state.selectedDate = e.target.value || null;
                 loadData();
             });
+
+            // Flèches ◀ ▶ : changer la date d'un jour
+            function shiftDate(days) {
+                const base = state.selectedDate ? selectedDateObj() : new Date();
+                base.setDate(base.getDate() + days);
+                const newDate = getDateStr(base);
+                state.selectedDate = newDate;
+                document.getElementById('datePicker').value = newDate;
+                loadData();
+            }
+            document.getElementById('datePrev')?.addEventListener('click', () => shiftDate(-1));
+            document.getElementById('dateNext')?.addEventListener('click', () => shiftDate(1));
 
             // Modal
             document.getElementById('modal-close')?.addEventListener('click', closeReservationModal);
