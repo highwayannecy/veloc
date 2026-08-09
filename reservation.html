@@ -1262,14 +1262,20 @@
                     content.appendChild(meta);
                     content.appendChild(text);
                 } else {
-                    const origin = document.createElement('span');
-                    origin.className = 'badge origin-site';
-                    origin.textContent = '🌐 Site';
-                    meta.appendChild(origin);
+                    // L'appareil depuis lequel la résa a été prise (premier badge)
+                    if (b.siteReservation.deviceName) {
+                        const device = document.createElement('span');
+                        device.className = 'badge meta';
+                        device.textContent = '💻 ' + b.siteReservation.deviceName;
+                        meta.appendChild(device);
+                    }
+                    // Même pattern que Apple : "créé le ..."
                     const created = document.createElement('span');
                     created.className = 'badge meta';
-                    created.textContent = formatCreatedBy(b.siteReservation.createdAt, b.siteReservation.deviceName);
-                    meta.appendChild(created);
+                    created.textContent = b.siteReservation.createdAt
+                        ? '🕐 créé le ' + formatDateTimeShort(b.siteReservation.createdAt)
+                        : '';
+                    if (created.textContent) meta.appendChild(created);
                     content.appendChild(meta);
 
                     const text = document.createElement('div');
