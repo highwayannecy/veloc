@@ -1285,16 +1285,14 @@
             badge.textContent = bookings.length;
 
             let html = `<table class="naming-tip-table">
-                <thead><tr><th>Tranche</th><th>Résa</th><th>Vélos</th></tr></thead>
+                <thead><tr><th>Heure</th><th>Résa</th><th>Vélos</th></tr></thead>
                 <tbody>`;
             rows.forEach(s => {
-                const next = slots[slots.indexOf(s) + 1];
-                const endLabel = next ? `${String(next.startH).padStart(2, '0')}h${String(next.startM).padStart(2, '0')}` : '11h00';
                 const startLabel = `${String(s.startH).padStart(2, '0')}h${String(s.startM).padStart(2, '0')}`;
                 html += `<tr>
-                    <td>${startLabel} à ${endLabel}</td>
-                    <td>${s.count} résa</td>
-                    <td>${s.bikes} vélos</td>
+                    <td>${startLabel}</td>
+                    <td>${s.count}</td>
+                    <td>${s.bikes}</td>
                 </tr>`;
             });
             html += `</tbody></table>`;
