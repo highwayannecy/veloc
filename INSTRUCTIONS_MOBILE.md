@@ -163,6 +163,39 @@ WHERE date = TO_CHAR(NOW(), 'YYYY-MM-DD');
 | `sort_order` | Ordre d'affichage |
 | `is_active` | `false` = masqué, non détecté |
 
+## 📱 SMS de confirmation automatique (Twilio)
+
+À chaque **prise de réservation** via la page `reservation.html`, un SMS de confirmation est envoyé automatiquement au client (création ET modification). L'envoi est **non bloquant** : si le SMS échoue, la réservation reste enregistrée.
+
+### Prérequis Twilio
+1. Créez un compte sur **twilio.com** (crédit d'essai offert, ~15 $)
+2. Récupérez votre **Account SID** et votre **Auth Token** (Dashboard → API Credentials)
+3. Obtenez un **numéro d'expéditeur** :
+   - En **mode trial** : un numéro US gratuit est fourni, mais les SMS ne partent que vers des **numéros vérifiés** (ajoutables dans la console) — parfait pour tester
+   - Pour la production : passez au compte payant, achetez un **numéro français** (~1 €/mois) et du crédit (~0,05 €/SMS)
+
+### Variables d'environnement Vercel
+| Variable | Contenu |
+|----------|---------|
+| `TWILIO_ACCOUNT_SID` | SID du compte Twilio |
+| `TWILIO_AUTH_TOKEN` | Token d'authentification Twilio |
+| `TWILIO_PHONE_NUMBER` | Numéro expéditeur (format E.164, ex : `+33612345678`) |
+
+Ajoutez-les dans **Vercel → Settings → Environment Variables**, puis **Redeploy**.
+
+### Message envoyé
+Exemple de SMS (≤ 160 caractères) :
+> Bonjour Jean, votre réservation Véloc est confirmée. RDV mar. 10/08 à 9h00. 2 VTC + 1 VAE. A bientôt !
+
+### Test rapide
+Appelez l'API manuellement pour vérifier la configuration :
+```bash
+curl -X POST https://[votre-domaine].vercel.app/api/send-sms \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"0612345678","clientName":"Test","startDate":"2026-08-11T09:00:00","summary":"1 VTC"}'
+```
+→ `{"ok":true,...}` = SMS envoyé. En mode trial, le numéro destinataire doit être vérifié dans Twilio.
+
 ## Test de l'API seule
 
 Pour vérifier que la fonction serveur fonctionne :
