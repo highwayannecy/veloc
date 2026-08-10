@@ -1987,12 +1987,7 @@
             if (badge) badge.textContent = totalBikes;
             list.innerHTML = html || '<div class="empty-state">Aucun type de vélo</div>';
         }
-</replace_in_file>
-<task_progress>
-- [x] Modifier renderWalkin() : badge stock restant affiché à côté du bouton + (même style que la popup)
-- [ ] Vérifier l'intégrité finale
-</task_progress>
-
+        
         async function refreshFormBadges() {
             const stock = await computeStockForDate(getDateStr(document.getElementById('start-date').value || state.selectedDate));
             document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => {
