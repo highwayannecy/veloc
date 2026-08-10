@@ -777,6 +777,7 @@
             selectedDate: null,
             initialized: false,
             walkin: {},           // flux libre : { bikeType: quantity }
+            walkinReserved: {},   // réservations de base (hors walkin) par type
         };
 
         // ============================================================
@@ -1650,6 +1651,8 @@
                 await syncFleetFromDB(state.selectedDate);
                 // syncFleetFromDB remplit _fleet → on l'utilise comme stock affiché
                 state.data.stock = _fleet;
+                // Calcule les réservations de base (hors walkin) pour les badges
+                state.walkinReserved = computeBaseReservedForDate(state.selectedDate);
                 // Charge le flux libre de la date sélectionnée
                 await loadWalkin(state.selectedDate);
                 document.getElementById('updatedText').textContent =
@@ -1941,21 +1944,62 @@
         }
 
         /**
-         * Rendu de la section Flux libre.
-         * Affiche à côté du bouton + un badge avec la quantité restante disponible
-         * (même principe que l'indicateur de stock de la popup de réservation).
+         * Calcul des réservations de base (site + iCloud, hors résas "pas venu")
+         * pour une date, SANS le flux libre. Utilisé pour afficher les badges
+         * de disponibilité restante du flux libre de manière synchrone.
          */
-        async function renderWalkin() {
+        function computeBaseReservedForDate(dateStr) {
+            const reserved = {};
+            FLOTTE_TYPES.forEach(t => reserved[t] = 0);
+
+            // Résas site
+            state.siteReservations.forEach(r => {
+                const nr = r;
+                if (nr.status === 'noshow') return; // libère le stock
+                const resDate = getDateStr(nr.startDate);
+                let affectedDays = [resDate];
+                if (nr.isLongDuration && nr.durationDays > 1) {
+                    for (let i = 0; i < nr.durationDays; i++) affectedDays.push(addDays(resDate, i));
+                    affectedDays = [...new Set(affectedDays)];
+                }
+                if (affectedDays.includes(dateStr)) {
+                    nr.items.forEach(item => {
+                        const key = item.bikeType === 'enfant' ? 'enfant-26p' : item.bikeType;
+                        if (reserved[key] !== undefined) reserved[key] += item.quantity;
+                    });
+                }
+            });
+
+            // Résas iCloud
+            const target = new Date(dateStr + 'T00:00:00');
+            (state.data?.bookings || []).forEach(b => {
+                const d = parseAppleDate(b.start);
+                if (!d) return;
+                if (getIcloudStatus(b) === 'noshow') return; // libère le stock
+                if (d.getFullYear() === target.getFullYear() &&
+                    d.getMonth() === target.getMonth() &&
+                    d.getDate() === target.getDate()) {
+                    for (const k in b.detected) {
+                        const fleetKey = toFleetKey(k);
+                        if (reserved[fleetKey] !== undefined) reserved[fleetKey] += b.detected[k];
+                    }
+                }
+            });
+
+            return reserved;
+        }
+
+        /**
+         * Rendu SYNCHRONE de la section Flux libre.
+         * Affiche à côté du bouton + un badge avec la quantité restante disponible,
+         * mis à jour INSTANTANÉMENT à chaque clic (même principe que la popup résa).
+         */
+        function renderWalkin() {
             const list = document.getElementById('walkinList');
             const badge = document.getElementById('walkinBadge');
             if (!list) return;
 
-            // Stock disponible résiduel (hors walkin actuel) pour chaque type
-            let stock = null;
-            try {
-                if (state.selectedDate) stock = await computeStockForDate(state.selectedDate);
-            } catch (e) { /* ignore */ }
-
+            const base = state.walkinReserved || {};
             let totalBikes = 0;
             let html = '';
             FLOTTE_TYPES.forEach(t => {
@@ -1963,13 +2007,8 @@
                 totalBikes += qty;
                 const cfg = FLOTTE[t];
 
-                // Disponible = total - réservé (hors walkin déjà compté ? computeStockForDate
-                // inclut le walkin actuel, donc on re-ajoute la valeur du walkin pour obtenir
-                // le disponible restant avant cette ligne)
-                let avail = cfg.total;
-                if (stock && stock[t] && typeof stock[t].reserved === 'number') {
-                    avail = Math.max(0, cfg.total - stock[t].reserved + qty);
-                }
+                // Disponible restant = total - résas (site+iCloud) - walkin déjà saisi
+                const avail = Math.max(0, cfg.total - (base[t] || 0) - qty);
                 const availClass = avail <= 0 ? 'stock-no' : avail <= Math.ceil(cfg.total * 0.25) ? 'stock-low' : 'stock-ok';
 
                 html += `<div class="walkin-row" data-bike="${t}">
