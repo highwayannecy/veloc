@@ -7,6 +7,7 @@
 DROP TABLE IF EXISTS reservation_items;
 DROP TABLE IF EXISTS reservations;
 DROP TABLE IF EXISTS fleet_history;
+DROP TABLE IF EXISTS walkin_history;
 DROP TABLE IF EXISTS bike_types;
 
 CREATE TABLE reservations (
@@ -82,6 +83,13 @@ CREATE TABLE fleet_history (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Table flux libre (walk-in) : une ligne par date, JSONB pour les totaux anonymes
+CREATE TABLE walkin_history (
+    date TEXT PRIMARY KEY,
+    totals JSONB DEFAULT '{}',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Ligne initiale pour aujourd'hui (clés = fleet_key des bike_types)
 INSERT INTO fleet_history (date, totals)
 VALUES (TO_CHAR(NOW(), 'YYYY-MM-DD'), '{"vae":70,"vtc":70,"ville":4,"route":1,"tandem":0,"siege":6,"charretteChien":1,"charrette":2,"enfant":10,"enfant-16p":1,"enfant-20p":4,"enfant-24p":1,"enfant-26p":4}');
@@ -94,11 +102,13 @@ CREATE INDEX idx_fleet_history_date ON fleet_history (date);
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fleet_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE walkin_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bike_types ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Accès complet réservations" ON reservations FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet items" ON reservation_items FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet historique flotte" ON fleet_history FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Accès complet flux libre" ON walkin_history FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet types vélos" ON bike_types FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- ============================================================
@@ -112,6 +122,7 @@ CREATE POLICY "Accès complet types vélos" ON bike_types FOR ALL TO anon USING 
 ALTER PUBLICATION supabase_realtime ADD TABLE reservations;
 ALTER PUBLICATION supabase_realtime ADD TABLE reservation_items;
 ALTER PUBLICATION supabase_realtime ADD TABLE fleet_history;
+ALTER PUBLICATION supabase_realtime ADD TABLE walkin_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE bike_types;
 
 -- ============================================================
@@ -152,6 +163,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE bike_types;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE reservations;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE reservation_items;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE fleet_history;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE walkin_history;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE bike_types;
 -- (Si "already member" → la table est déjà activée, aucune action)
 

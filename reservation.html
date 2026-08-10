@@ -375,6 +375,33 @@
         }
         .stock-field-input:focus { outline: none; border-color: #0052cc; background: #eff6ff; }
 
+        /* --- FLUX LIBRE (walk-in) --- */
+        .walkin-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .walkin-row:last-child { border-bottom: none; }
+        .walkin-icon { font-size: 1.2rem; min-width: 28px; text-align: center; }
+        .walkin-name { font-size: 0.95rem; font-weight: 600; flex: 1; min-width: 0; color: #1e293b; }
+        .walkin-qty { display: flex; align-items: center; gap: 8px; }
+        .walkin-btn {
+            width: 36px; height: 36px;
+            border: none; border-radius: 10px;
+            background: #0052cc; color: #fff;
+            font-size: 1.1rem; font-weight: 800; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.1s;
+        }
+        .walkin-btn:hover { background: #003b99; }
+        .walkin-btn:active { transform: scale(0.92); }
+        .walkin-value {
+            min-width: 30px; text-align: center;
+            font-size: 1.1rem; font-weight: 800; color: #0f172a;
+        }
+
         /* --- ZONE DE BOUTONS --- */
         .action-row {
             display: flex;
@@ -629,6 +656,16 @@
         <button class="add-reservation-btn" onclick="openReservationModal()" aria-label="Nouvelle réservation">➕</button>
     </div>
 
+    <!-- Flux libre (walk-in) : vélos anonymes ajoutés à la volée -->
+    <div class="panel" id="walkinPanel">
+        <div class="panel-title">
+            🚶 Flux libre
+            <span class="count-badge" id="walkinBadge">0</span>
+            <button class="edit-stock-btn" onclick="resetWalkin()" title="Vider le flux du jour">⟲</button>
+        </div>
+        <div id="walkinList"></div>
+    </div>
+
     <!-- Détail par catégorie -->
     <div class="panel">
         <div class="panel-title">
@@ -739,6 +776,7 @@
             siteReservations: [], // réservations Supabase normalisées
             selectedDate: null,
             initialized: false,
+            walkin: {},           // flux libre : { bikeType: quantity }
         };
 
         // ============================================================
@@ -1141,6 +1179,15 @@
                     }
                 }
             }
+            // Flux libre (walk-in) : s'ajoute aux totaux par catégorie
+            for (const k in state.walkin) {
+                const qty = state.walkin[k] || 0;
+                if (qty <= 0) continue;
+                const t = getTypes().find(x => toFleetKey(x.key) === k);
+                const key = t ? t.key : k;
+                if (totals[key] !== undefined) totals[key] += qty;
+                if (t && t.isChildSize) totals['enfant'] = (totals['enfant'] || 0) + qty;
+            }
             for (const b of bookings) {
                 if (isBookingNoShow(b)) continue; // noshow : quantité non comptée
                 const kids = {};
@@ -1337,6 +1384,12 @@
             for (const b of bookings) {
                 totalVelos += countBikesForBooking(b); // gère noshow (0) + exclut enfant
             }
+            // Ajoute le flux libre (walk-in) au total de vélos
+            for (const k in state.walkin) {
+                totalVelos += state.walkin[k] || 0;
+            }
+
+            renderWalkin();
 
             // Stock total disponible (somme des stocks par type)
             let stockTotal = 0;
@@ -1597,6 +1650,8 @@
                 await syncFleetFromDB(state.selectedDate);
                 // syncFleetFromDB remplit _fleet → on l'utilise comme stock affiché
                 state.data.stock = _fleet;
+                // Charge le flux libre de la date sélectionnée
+                await loadWalkin(state.selectedDate);
                 document.getElementById('updatedText').textContent =
                     `Mis à jour le ${new Date(state.data.generatedAt).toLocaleString('fr-FR')}`;
                 render();
@@ -1796,7 +1851,122 @@
                 }
             });
 
+            // Flux libre (walk-in) : consomme le stock de la date sélectionnée
+            if (dateStr === state.selectedDate) {
+                for (const k in state.walkin) {
+                    const qty = state.walkin[k] || 0;
+                    if (qty > 0 && stock[k]) stock[k].reserved += qty;
+                }
+            }
+
             return stock;
+        }
+
+        // ============================================================
+        // FLUX LIBRE (walk-in) — vélos anonymes par date
+        // ============================================================
+
+        /**
+         * Charge le flux libre d'une date depuis Supabase (table walkin_history).
+         */
+        async function loadWalkin(dateStr) {
+            state.walkin = {};
+            if (!_supabase || !dateStr) return;
+            try {
+                const { data, error } = await _supabase
+                    .from('walkin_history')
+                    .select('totals')
+                    .eq('date', dateStr)
+                    .maybeSingle();
+                if (!error && data && data.totals) {
+                    state.walkin = data.totals || {};
+                }
+            } catch (e) {
+                console.warn('⚠️ Walkin non chargé:', e.message);
+            }
+        }
+
+        /**
+         * Sauvegarde le flux libre d'une date (upsert dans walkin_history).
+         */
+        async function saveWalkin(dateStr, walkin) {
+            if (!_supabase || !dateStr) return;
+            try {
+                await _supabase
+                    .from('walkin_history')
+                    .upsert({ date: dateStr, totals: walkin, updated_at: new Date().toISOString() }, { onConflict: 'date' });
+            } catch (e) {
+                console.warn('⚠️ Walkin non sauvegardé:', e.message);
+            }
+        }
+
+        /**
+         * Modifie la quantité d'un type dans le flux libre (et sauvegarde).
+         */
+        async function updateWalkin(bikeType, delta) {
+            if (!state.selectedDate) return;
+            const cur = state.walkin[bikeType] || 0;
+            const next = Math.max(0, cur + delta);
+            // Bloque si on dépasse le stock disponible (comme une résa)
+            if (next > cur) {
+                const avail = await getAvailableWalkin(bikeType);
+                if (next > avail) {
+                    showToast('⚠️ Stock insuffisant', 'error');
+                    return;
+                }
+            }
+            state.walkin[bikeType] = next;
+            await saveWalkin(state.selectedDate, state.walkin);
+            render();
+        }
+
+        /**
+         * Disponible pour le walkin = stock total - réservations (sans le walkin actuel).
+         */
+        async function getAvailableWalkin(bikeType) {
+            const stock = await computeStockForDate(state.selectedDate);
+            const cfg = FLOTTE[bikeType];
+            return cfg ? Math.max(0, cfg.total - (stock[bikeType]?.reserved || 0)) : 0;
+        }
+
+        /**
+         * Réinitialise le flux libre du jour (après confirmation).
+         */
+        async function resetWalkin() {
+            if (!state.selectedDate) return;
+            if (!confirm('Réinitialiser le flux libre du jour ?')) return;
+            state.walkin = {};
+            await saveWalkin(state.selectedDate, {});
+            render();
+        }
+
+        /**
+         * Rendu de la section Flux libre.
+         */
+        function renderWalkin() {
+            const list = document.getElementById('walkinList');
+            const badge = document.getElementById('walkinBadge');
+            if (!list) return;
+
+            let totalBikes = 0;
+            let html = '';
+            FLOTTE_TYPES.forEach(t => {
+                const qty = state.walkin[t] || 0;
+                totalBikes += qty;
+                const cfg = FLOTTE[t];
+                html += `<div class="walkin-row" data-bike="${t}">
+                    <span class="walkin-icon">${cfg.icon}</span>
+                    <span class="walkin-name">${cfg.label}</span>
+                    <span class="walkin-qty">
+                        <button class="walkin-btn" onclick="updateWalkin('${t}', -1)">−</button>
+                        <span class="walkin-value">${qty}</span>
+                        <button class="walkin-btn" onclick="updateWalkin('${t}', 1)">+</button>
+                    </span>
+                </div>`;
+            });
+
+            if (badge) badge.textContent = totalBikes;
+            list.innerHTML = html || '<div class="empty-state">Aucun type de vélo</div>';
         }
 
         async function refreshFormBadges() {
@@ -2099,6 +2269,26 @@
                     const ok = await saveSiteReservation(reservation, items, editId);
                     if (ok) {
                         showToast(editId ? '✅ Réservation modifiée !' : '✅ Réservation enregistrée !', 'success');
+
+                        // ✉️ SMS de confirmation (Twilio) — non bloquant
+                        try {
+                            const smsSummary = items
+                                .map(i => `${i.quantity} ${FLOTTE[i.bikeType]?.label || i.bikeType}`)
+                                .join(' + ');
+                            fetch('/api/send-sms', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    phone: phone,
+                                    clientName: name,
+                                    startDate: startDate,
+                                    summary: smsSummary,
+                                }),
+                            }).catch(() => {});
+                        } catch (smsErr) {
+                            console.warn('⚠️ SMS non envoyé:', smsErr);
+                        }
+
                         cancelEdit();
                         closeReservationModal();
                         await loadData();
