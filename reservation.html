@@ -401,6 +401,24 @@
             min-width: 30px; text-align: center;
             font-size: 1.1rem; font-weight: 800; color: #0f172a;
         }
+        /* Badge de disponibilité restante — vrai badge pilule */
+        .walkin-avail {
+            min-width: 36px;
+            text-align: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+        }
+        .walkin-avail.stock-ok { background: #d1fae5; color: #065f46; }
+        .walkin-avail.stock-low { background: #fef3c7; color: #92400e; }
+        .walkin-avail.stock-no { background: #fee2e2; color: #991b1b; }
+        /* Repli de la section flux libre */
+        #walkinList.collapsed { display: none; }
 
         /* --- ZONE DE BOUTONS --- */
         .action-row {
@@ -659,9 +677,13 @@
     <!-- Flux libre (walk-in) : vélos anonymes ajoutés à la volée -->
     <div class="panel" id="walkinPanel">
         <div class="panel-title">
-            🚶 Flux libre
-            <span class="count-badge" id="walkinBadge">0</span>
-            <button class="edit-stock-btn" onclick="resetWalkin()" title="Vider le flux du jour">⟲</button>
+            <span class="walkin-title" onclick="toggleWalkin()" style="cursor:pointer;">
+                <span id="walkinChevron">▾</span> 🚶 Flux libre
+            </span>
+            <span style="display:flex;align-items:center;gap:8px;">
+                <span class="count-badge" id="walkinBadge">0</span>
+                <button class="edit-stock-btn" onclick="resetWalkin()" title="Vider le flux du jour">⟲</button>
+            </span>
         </div>
         <div id="walkinList"></div>
     </div>
@@ -1869,6 +1891,37 @@
         // FLUX LIBRE (walk-in) — vélos anonymes par date
         // ============================================================
 
+        const WALKIN_COLLAPSED_KEY = 'veloc_walkin_collapsed';
+
+        /**
+         * Ouvre / ferme la section Flux libre (repliable).
+         * L'état est mémorisé en localStorage.
+         */
+        function toggleWalkin() {
+            const list = document.getElementById('walkinList');
+            const chevron = document.getElementById('walkinChevron');
+            if (!list || !chevron) return;
+            const collapsed = list.classList.toggle('collapsed');
+            chevron.textContent = collapsed ? '▸' : '▾';
+            localStorage.setItem(WALKIN_COLLAPSED_KEY, collapsed ? '1' : '0');
+        }
+
+        /**
+         * Applique l'état replié sauvegardé au chargement (défaut : ouvert).
+         */
+        function restoreWalkinState() {
+            const list = document.getElementById('walkinList');
+            const chevron = document.getElementById('walkinChevron');
+            if (!list || !chevron) return;
+            if (localStorage.getItem(WALKIN_COLLAPSED_KEY) === '1') {
+                list.classList.add('collapsed');
+                chevron.textContent = '▸';
+            } else {
+                list.classList.remove('collapsed');
+                chevron.textContent = '▾';
+            }
+        }
+
         /**
          * Charge le flux libre d'une date depuis Supabase (table walkin_history).
          */
@@ -2238,6 +2291,8 @@
                 const ready = await isSupabaseReady();
                 if (ready) useSupabase = true;
             }
+            // Restaure l'état replié/ouvert de la section Flux libre
+            restoreWalkinState();
             await loadBikeTypes();
             await syncFleetFromDB(todayStr());
 
