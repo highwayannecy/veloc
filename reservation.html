@@ -595,6 +595,37 @@
         .toast.error { background: #ef4444; }
         .toast.info { background: #0052cc; }
 
+        /* --- OVERLAY DE CHARGEMENT GLOBAL --- */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(2px);
+            z-index: 9998;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+        }
+        .loading-overlay.visible { display: flex; }
+        .loading-spinner {
+            width: 56px;
+            height: 56px;
+            border: 5px solid #e2e8f0;
+            border-top-color: #0052cc;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        #loadingText {
+            font-size: 15px;
+            font-weight: 700;
+            color: #334155;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .hidden { display: none; }
     </style>
 </head>
@@ -772,6 +803,12 @@
 
     <div id="toast" class="toast"></div>
 
+    <!-- Overlay de chargement global (fetch, enregistrement, changement de jour) -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div id="loadingText">Chargement...</div>
+    </div>
+
     <script>
         // ============================================================
         // CONFIG & ÉTAT
@@ -875,6 +912,29 @@
             t.className = 'toast ' + type + ' show';
             clearTimeout(t._timeout);
             t._timeout = setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        // ============================================================
+        // OVERLAY DE CHARGEMENT GLOBAL (fetch, enregistrement, jour)
+        // ============================================================
+
+        /**
+         * Affiche l'overlay de chargement avec un message.
+         * Bloque les clics pendant les opérations sur la BDD.
+         */
+        function showLoading(msg = 'Chargement...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const text = document.getElementById('loadingText');
+            if (text) text.textContent = msg;
+            if (overlay) overlay.classList.add('visible');
+        }
+
+        /**
+         * Masque l'overlay de chargement.
+         */
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.remove('visible');
         }
         function getDeviceType() {
             const ua = navigator.userAgent;
@@ -1656,6 +1716,8 @@
             document.getElementById('updatedText').textContent = 'Chargement...';
             document.getElementById('errorBox').classList.add('hidden');
             initSupabaseClient();
+            // Affiche le chargement pendant les fetch BDD (changement de jour, actualisation)
+            showLoading('Chargement des réservations...');
             try {
                 const resp = await fetch('/api/booking-count');
                 if (!resp.ok) {
@@ -1684,6 +1746,8 @@
                 document.getElementById('errorBox').textContent = 'Erreur : ' + err.message;
                 document.getElementById('errorBox').classList.remove('hidden');
                 document.getElementById('updatedText').textContent = 'Chargement impossible';
+            } finally {
+                hideLoading();
             }
         }
 
@@ -2339,18 +2403,25 @@
             if (form) {
                 form.addEventListener('submit', async (e) => {
                     e.preventDefault();
+
+                    // Anti double-clic : bloque le bouton pendant l'enregistrement
+                    const submitBtn = document.getElementById('submit-btn');
+                    if (submitBtn?.disabled) return; // déjà en cours
+                    if (submitBtn) submitBtn.disabled = true;
+
                     const editId = document.getElementById('edit-id').value || null;
                     const isEditing = !!editId;
-                    if (!validateDate(true, isEditing)) return;
+                    if (!validateDate(true, isEditing)) { if (submitBtn) submitBtn.disabled = false; return; }
+                    showLoading('Enregistrement de la réservation...');
                     const name = document.getElementById('client-name').value.trim();
                     const phone = document.getElementById('client-phone').value.trim();
                     const startDate = startDateInput.value;
                     const isLongDuration = longDur ? longDur.checked : false;
                     const durationDays = isLongDuration ? (parseInt(durDays?.value) || 2) : 1;
                     const notes = document.getElementById('notes').value.trim();
-                    if (!name || !phone || !startDate) { showToast('Remplissez tous les champs', 'error'); return; }
+                    if (!name || !phone || !startDate) { showToast('Remplissez tous les champs', 'error'); if (submitBtn) submitBtn.disabled = false; hideLoading(); return; }
                     const items = getQtyValues();
-                    if (items.length === 0) { showToast('Sélectionnez au moins un vélo', 'error'); return; }
+                    if (items.length === 0) { showToast('Sélectionnez au moins un vélo', 'error'); if (submitBtn) submitBtn.disabled = false; hideLoading(); return; }
 
                     const dateStr = getDateStr(new Date(startDate));
                     const stock = await computeStockForDate(dateStr);
@@ -2360,6 +2431,8 @@
                         const available = Math.max(0, cfg.total - stock[item.bikeType].reserved);
                         if (item.quantity > available) {
                             showToast(`⚠️ Stock insuffisant pour ${cfg.label} (reste ${available})`, 'error');
+                            if (submitBtn) submitBtn.disabled = false;
+                            hideLoading();
                             return;
                         }
                     }
@@ -2408,6 +2481,9 @@
                     } else {
                         showToast('❌ Erreur lors de l\'enregistrement', 'error');
                     }
+                    // Réactive le bouton après la fin de l'enregistrement
+                    if (submitBtn) submitBtn.disabled = false;
+                    hideLoading();
                 });
             }
 
