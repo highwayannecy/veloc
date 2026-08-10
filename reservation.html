@@ -1942,11 +1942,19 @@
 
         /**
          * Rendu de la section Flux libre.
+         * Affiche à côté du bouton + un badge avec la quantité restante disponible
+         * (même principe que l'indicateur de stock de la popup de réservation).
          */
-        function renderWalkin() {
+        async function renderWalkin() {
             const list = document.getElementById('walkinList');
             const badge = document.getElementById('walkinBadge');
             if (!list) return;
+
+            // Stock disponible résiduel (hors walkin actuel) pour chaque type
+            let stock = null;
+            try {
+                if (state.selectedDate) stock = await computeStockForDate(state.selectedDate);
+            } catch (e) { /* ignore */ }
 
             let totalBikes = 0;
             let html = '';
@@ -1954,6 +1962,16 @@
                 const qty = state.walkin[t] || 0;
                 totalBikes += qty;
                 const cfg = FLOTTE[t];
+
+                // Disponible = total - réservé (hors walkin déjà compté ? computeStockForDate
+                // inclut le walkin actuel, donc on re-ajoute la valeur du walkin pour obtenir
+                // le disponible restant avant cette ligne)
+                let avail = cfg.total;
+                if (stock && stock[t] && typeof stock[t].reserved === 'number') {
+                    avail = Math.max(0, cfg.total - stock[t].reserved + qty);
+                }
+                const availClass = avail <= 0 ? 'stock-no' : avail <= Math.ceil(cfg.total * 0.25) ? 'stock-low' : 'stock-ok';
+
                 html += `<div class="walkin-row" data-bike="${t}">
                     <span class="walkin-icon">${cfg.icon}</span>
                     <span class="walkin-name">${cfg.label}</span>
@@ -1961,6 +1979,7 @@
                         <button class="walkin-btn" onclick="updateWalkin('${t}', -1)">−</button>
                         <span class="walkin-value">${qty}</span>
                         <button class="walkin-btn" onclick="updateWalkin('${t}', 1)">+</button>
+                        <span class="stock-indicator ${availClass} walkin-avail">${avail}</span>
                     </span>
                 </div>`;
             });
@@ -1968,6 +1987,11 @@
             if (badge) badge.textContent = totalBikes;
             list.innerHTML = html || '<div class="empty-state">Aucun type de vélo</div>';
         }
+</replace_in_file>
+<task_progress>
+- [x] Modifier renderWalkin() : badge stock restant affiché à côté du bouton + (même style que la popup)
+- [ ] Vérifier l'intégrité finale
+</task_progress>
 
         async function refreshFormBadges() {
             const stock = await computeStockForDate(getDateStr(document.getElementById('start-date').value || state.selectedDate));
