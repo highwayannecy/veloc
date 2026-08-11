@@ -1902,13 +1902,14 @@
 
         // Stock restant pour une date (iCloud + site combinés)
         // Les résas "noshow" ne réservent plus de stock (libération)
-        async function computeStockForDate(dateStr) {
+        async function computeStockForDate(dateStr, excludeReservationId = null) {
             const stock = {};
             FLOTTE_TYPES.forEach(t => stock[t] = { total: FLOTTE[t].total, reserved: 0 });
 
             // Résas site
             state.siteReservations.forEach(r => {
                 const nr = r;
+                if (excludeReservationId && nr.id === excludeReservationId) return; // ignore la résa en cours d'édition
                 if (nr.status === 'noshow') return; // libère le stock
                 const resDate = getDateStr(nr.startDate);
                 let affectedDays = [resDate];
@@ -2027,10 +2028,12 @@
             if (!state.selectedDate) return;
             const cur = state.walkin[bikeType] || 0;
             const next = Math.max(0, cur + delta);
-            // Bloque si on dépasse le stock disponible (comme une résa)
-            if (next > cur) {
+            // Bloque si l'AJOUT (delta) dépasse le stock restant affiché dans le badge.
+            // On compare delta à "avail" (= total - résas - walkin actuel), et NON
+            // le total du walkin (next) — sinon faux "Stock insuffisant".
+            if (delta > 0) {
                 const avail = await getAvailableWalkin(bikeType);
-                if (next > avail) {
+                if (delta > avail) {
                     showToast('⚠️ Stock insuffisant', 'error');
                     return;
                 }
@@ -2145,7 +2148,10 @@
         }
         
         async function refreshFormBadges() {
-            const stock = await computeStockForDate(getDateStr(document.getElementById('start-date').value || state.selectedDate));
+            // En édition, exclut la résa en cours du calcul de stock réservé
+            // pour que les badges montrent le disponible réel pour l'augmenter.
+            const editId = document.getElementById('edit-id').value || null;
+            const stock = await computeStockForDate(getDateStr(document.getElementById('start-date').value || state.selectedDate), editId);
             document.querySelectorAll('.bike-qty-item:not(.walkin-item)').forEach(el => {
                 const bikeType = el.dataset.bike;
                 if (!bikeType || !stock?.[bikeType]) return;
@@ -2424,7 +2430,9 @@
                     if (items.length === 0) { showToast('Sélectionnez au moins un vélo', 'error'); if (submitBtn) submitBtn.disabled = false; hideLoading(); return; }
 
                     const dateStr = getDateStr(new Date(startDate));
-                    const stock = await computeStockForDate(dateStr);
+                    // En édition, exclut la résa en cours du calcul de stock réservé
+                    // pour pouvoir ajuster ses quantités sans faux "Stock insuffisant".
+                    const stock = await computeStockForDate(dateStr, editId);
                     for (const item of items) {
                         const cfg = FLOTTE[item.bikeType];
                         if (!cfg) continue;
