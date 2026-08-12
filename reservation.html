@@ -1800,7 +1800,8 @@
                     const item = btn.closest('.bike-qty-item');
                     const valEl = item.querySelector('.qty-value');
                     const badge = item.querySelector('.stock-indicator');
-                    const max = parseInt(badge?.textContent) || 0;
+                    // Limite = disponible réel (dataset.avail, stable) + quantité initiale de la résa
+                    const max = (parseInt(item.dataset.avail) || 0) + getInitialItemQty(item);
                     let val = parseInt(valEl.value) || 0;
                     if (val < max) {
                         val++;
@@ -1811,9 +1812,26 @@
                 });
             });
         }
+        /**
+         * Quantité initiale de la résa en cours d'édition pour le type de vélo
+         * d'un item du formulaire. 0 si ce n'est pas une édition ou type absent.
+         */
+        function getInitialItemQty(item) {
+            const editId = document.getElementById('edit-id').value;
+            if (!editId) return 0;
+            const r = state.siteReservations.find(x => x.id === editId);
+            if (!r) return 0;
+            const it = r.items.find(i => i.bikeType === (item.dataset ? item.dataset.bike : item));
+            return it ? (it.quantity || 0) : 0;
+        }
+
         function updatePlusButtons(item) {
             const val = parseInt(item.querySelector('.qty-value').value) || 0;
-            const max = parseInt(item.querySelector('.stock-indicator').textContent) || 0;
+            // Limite = disponible réel (dataset.avail, stable) + quantité initiale
+            // de la résa en cours d'édition. Le badge ne doit pas être la limite.
+            const avail = parseInt(item.dataset.avail) > -1 ? parseInt(item.dataset.avail) : (parseInt(item.querySelector('.stock-indicator').textContent) || 0);
+            const initial = getInitialItemQty(item);
+            const max = avail + initial;
             const plusBtn = item.querySelector('.qty-plus');
             if (plusBtn) plusBtn.disabled = val >= max;
         }
@@ -2158,6 +2176,8 @@
                 const cfg = FLOTTE[bikeType];
                 if (!cfg) return;
                 const available = Math.max(0, cfg.total - stock[bikeType].reserved);
+                // Stocke le disponible réel (stable) pour la limite du bouton +
+                el.dataset.avail = available;
                 const indicator = el.querySelector('.stock-indicator');
                 if (indicator) {
                     indicator.textContent = available;
@@ -2437,7 +2457,13 @@
                         const cfg = FLOTTE[item.bikeType];
                         if (!cfg) continue;
                         const available = Math.max(0, cfg.total - stock[item.bikeType].reserved);
-                        if (item.quantity > available) {
+                        // Seul l'AJOUT net (quantité - quantité initiale de la résa) consomme
+                        // du nouveau stock : la quantité initiale est déjà "possédée".
+                        const initialQty = editId
+                            ? (state.siteReservations.find(x => x.id === editId)?.items.find(i => i.bikeType === item.bikeType)?.quantity || 0)
+                            : 0;
+                        const added = Math.max(0, item.quantity - initialQty);
+                        if (added > available) {
                             showToast(`⚠️ Stock insuffisant pour ${cfg.label} (reste ${available})`, 'error');
                             if (submitBtn) submitBtn.disabled = false;
                             hideLoading();
