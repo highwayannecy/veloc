@@ -2328,6 +2328,15 @@
             refreshFormBadges();
         }
 
+        /**
+         * Verrouille / déverrouille le scroll du body pendant que la popup
+         * de réservation est ouverte (évite le rafraîchissement au scroll).
+         */
+        function setModalScrollLock(open) {
+            document.body.style.overflow = open ? 'hidden' : '';
+            document.body.style.overscrollBehavior = 'none';
+        }
+
         async function openReservationModal() {
             if (!useSupabase) {
                 showToast('❌ Base non connectée', 'error');
@@ -2337,9 +2346,13 @@
             document.getElementById('bike-qty-grid').innerHTML = '';
             renderBikeFormItems();
             await refreshFormBadges();
+            // Bloque le scroll du body pendant que la popup est ouverte
+            setModalScrollLock(true);
             document.getElementById('reservation-modal').classList.add('open');
         }
         function closeReservationModal() {
+            // Réautorise le scroll du body
+            setModalScrollLock(false);
             document.getElementById('reservation-modal').classList.remove('open');
         }
 
@@ -2389,6 +2402,8 @@
             renderBikeFormItems();
             setQtyValues(r.items);
             await refreshFormBadges();
+            // Bloque le scroll du body pendant l'édition aussi
+            setModalScrollLock(true);
             document.getElementById('reservation-modal').classList.add('open');
         }
 
