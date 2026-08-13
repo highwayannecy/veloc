@@ -456,6 +456,19 @@
         .settings-btn:hover { background: #cbd5e1; color: #0f172a; }
         .settings-btn:active { transform: scale(0.95); }
 
+        /* --- BANDEAU RÉSERVATIONS EN ATTENTE (hors ligne) --- */
+        .pending-banner {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
         /* --- FAB : bouton flottant "Nouvelle réservation" en bas à droite --- */
         .add-reservation-btn {
             position: fixed;
@@ -698,6 +711,9 @@
 
     <div class="action-row">
         <div class="updated" id="updatedText">Chargement...</div>
+        <div class="pending-banner hidden" id="pendingBanner">
+            <span>💾 <span id="pendingCount">0</span> réservation(s) en attente d'envoi</span>
+        </div>
         <div class="action-top-row">
             <button class="refresh-btn" onclick="loadData()">⟳ Actualiser</button>
             <button class="settings-btn" onclick="openSettings()" title="Paramètres">⚙️</button>
@@ -1170,10 +1186,106 @@
             else delete statuses[uid];
             localStorage.setItem(ICLOUD_STATUS_KEY, JSON.stringify(statuses));
         }
-        function getIcloudStatus(booking) {
-            if (!booking || !booking.uid) return null;
-            return loadIcloudStatuses()[booking.uid] || null;
+        // ============================================================
+        // MODE HORS LIGNE — FILE D'ATTENTE LOCALE (localStorage)
+        // ============================================================
+
+        /**
+         * File d'attente des réservations à pousser vers Supabase
+         * (créées hors ligne puis synchronisées à la reconnexion).
+         */
+        const PENDING_KEY = 'veloc_pending_reservations';
+
+        function loadPending() {
+            try { return JSON.parse(localStorage.getItem(PENDING_KEY)) || []; }
+            catch { return []; }
         }
+        function savePending(list) {
+            localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+            updatePendingBanner();
+        }
+        function addPending(entry) {
+            const list = loadPending();
+            list.push(entry);
+            savePending(list);
+        }
+        function removePending(localId) {
+            const list = loadPending().filter(e => e.localId !== localId);
+            savePending(list);
+        }
+        function updatePendingBanner() {
+            const banner = document.getElementById('pendingBanner');
+            const count = document.getElementById('pendingCount');
+            if (!banner || !count) return;
+            const n = loadPending().length;
+            count.textContent = n;
+            banner.classList.toggle('hidden', n === 0);
+        }
+
+        /**
+         * Tente de pousser toutes les réservations en attente vers Supabase.
+         * Appelé à la reconnexion et au chargement si une file existe.
+         */
+        async function flushPendingReservations() {
+            if (!useSupabase || !_supabase) return;
+            if (loadPending().length === 0) return;
+
+            const pending = loadPending();
+            let sent = 0;
+            for (const entry of pending) {
+                try {
+                    const ok = await saveSiteReservation(entry.reservation, entry.items);
+                    if (ok) {
+                        removePending(entry.localId);
+                        sent++;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Échec flush réservation hors ligne:', e);
+                }
+            }
+            if (sent > 0) {
+                showToast(`✅ ${sent} réservation(s) hors ligne envoyée(s)`, 'success');
+                await loadData();
+            }
+        }
+
+        /**
+         * Ajoute l'envoi SMS au moment du flush (résa hors ligne).
+         */
+        async function flushPendingWithSms() {
+            const pendingBefore = loadPending();
+            await flushPendingReservations();
+            const pendingAfter = loadPending();
+            // Envoie les SMS pour celles qui viennent d'être poussées avec succès
+            if (pendingBefore.length > pendingAfter.length) {
+                const sentEntries = pendingBefore.filter(before => !pendingAfter.some(after => after.localId === before.localId));
+                for (const entry of sentEntries) {
+                    try {
+                        const smsSummary = entry.items
+                            .map(i => `${i.quantity} ${FLOTTE[i.bikeType]?.label || i.bikeType}`)
+                            .join(' + ');
+                        fetch('/api/send-sms', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                phone: entry.reservation.clientPhone,
+                                clientName: entry.reservation.clientName,
+                                startDate: entry.reservation.startDate,
+                                summary: smsSummary,
+                            }),
+                        }).catch(() => {});
+                    } catch (smsErr) {
+                        console.warn('⚠️ SMS différé non envoyé:', smsErr);
+                    }
+                }
+            }
+        }
+
+        // Détection de connexion : flush automatique à la reconnexion
+        window.addEventListener('online', () => {
+            showToast('📶 Connexion rétablie', 'info');
+            flushPendingWithSms();
+        });
 
         // ============================================================
         // FUSION iCloud + Site
@@ -2383,6 +2495,8 @@
             }
             // Restaure l'état replié/ouvert de la section Flux libre
             restoreWalkinState();
+            // Affiche le bandeau si des réservations sont en attente d'envoi (hors ligne)
+            updatePendingBanner();
             await loadBikeTypes();
             await syncFleetFromDB(todayStr());
 
@@ -2513,7 +2627,18 @@
                         closeReservationModal();
                         await loadData();
                     } else {
-                        showToast('❌ Erreur lors de l\'enregistrement', 'error');
+                        // Mode hors ligne : met la réservation en file d'attente locale
+                        // pour être poussée automatiquement à la reconnexion.
+                        addPending({
+                            localId: generateId(),
+                            createdAt: new Date().toISOString(),
+                            reservation,
+                            items,
+                        });
+                        showToast('⚠️ Hors ligne — réservation enregistrée, sera envoyée automatiquement', 'info');
+                        cancelEdit();
+                        closeReservationModal();
+                        updatePendingBanner();
                     }
                     // Réactive le bouton après la fin de l'enregistrement
                     if (submitBtn) submitBtn.disabled = false;
@@ -2523,6 +2648,9 @@
 
             setInterval(() => { if (!document.hidden) loadData(); }, 5 * 60 * 1000);
             await loadData();
+            // Au chargement, tente de pousser les réservations en attente
+            // (par exemple si la page s'ouvre alors que la connexion est revenue).
+            if (navigator.onLine) flushPendingWithSms();
         }
 
         document.addEventListener('DOMContentLoaded', setupPinScreen);
