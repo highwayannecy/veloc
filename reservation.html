@@ -810,7 +810,7 @@
                 </div>
                 <div class="duration-input" id="duration-input">
                     <div class="form-row" style="gap:8px;">
-                        <div class="form-group" style="margin-bottom:0;"><label>Nombre de jours</label><input type="number" id="duration-days" value="2" min="2" max="30"></div>
+                        <div class="form-group" style="margin-bottom:0;"><label>Nombre de jours</label><input type="number" id="duration-days" value="2" min="2" max="30" onchange="this.value = Math.max(2, Math.min(30, this.value || 2)); updateEndDate();"></div>
                         <div class="form-group" style="margin-bottom:0;"><label>Jusqu'au</label><input type="date" id="end-date-display" readonly style="background:#f1f5f9;"></div>
                     </div>
                 </div>
