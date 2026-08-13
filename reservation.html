@@ -260,6 +260,17 @@
 
         .booking-text { font-size: 14px; color: #334155; line-height: 1.4; margin-top: 4px; }
 
+        .booking-notes {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 3px 8px;
+            margin-top: 4px;
+            display: inline-block;
+            word-break: break-word;
+        }
+
         .booking-detail {
             font-size: 13px; color: #0f172a; font-weight: 700;
             text-align: right;
@@ -1436,7 +1447,12 @@
                 const cfg = FLOTTE[item.bikeType] || { label: item.bikeType };
                 parts.push(`${item.quantity} ${cfg.label}`);
             }
-            if (siteReservation.isLongDuration) parts.push(`${siteReservation.durationDays}j`);
+            // Durée de la longue durée entre parenthèses à la fin : "4 VTC (2j)"
+            if (siteReservation.isLongDuration && siteReservation.durationDays > 1) {
+                const suffix = ` (${siteReservation.durationDays}j)`;
+                if (parts.length > 0) parts[parts.length - 1] += suffix;
+                else parts.push(suffix.trim());
+            }
             return parts.length > 0 ? parts.join(' + ') : 'Aucun vélo';
         }
 
@@ -1773,6 +1789,14 @@
                         phone.className = 'badge meta';
                         phone.textContent = '📞 ' + b.siteReservation.clientPhone;
                         content.appendChild(phone);
+                    }
+
+                    // Notes de la réservation
+                    if (b.siteReservation.notes) {
+                        const notes = document.createElement('div');
+                        notes.className = 'booking-notes';
+                        notes.textContent = '📝 ' + b.siteReservation.notes;
+                        content.appendChild(notes);
                     }
                 }
 
