@@ -1186,6 +1186,11 @@
             else delete statuses[uid];
             localStorage.setItem(ICLOUD_STATUS_KEY, JSON.stringify(statuses));
         }
+        function getIcloudStatus(booking) {
+            if (!booking || !booking.uid) return null;
+            return loadIcloudStatuses()[booking.uid] || null;
+        }
+
         // ============================================================
         // MODE HORS LIGNE — FILE D'ATTENTE LOCALE (localStorage)
         // ============================================================
