@@ -371,6 +371,8 @@
             <div class="logo"><a href="index.html"><img src="assets/logo_veloc.png" alt="Logo" class="logo-img"></a></div>
             <nav>
                 <a href="index.html">← Retour au site</a>
+                <a href="procedures.html">📋 Procédures</a>
+                <a href="connexion.html">👥 Employés</a>
                 <span id="db-indicator" class="db-status offline">📁 Local</span>
             </nav>
         </div>
@@ -555,6 +557,47 @@
         </div>
     </div>
 
+    <!-- ⏱️ TEMPS DE CONSULTATION DES EMPLOYÉS -->
+    <div style="max-width:1400px;margin:0 auto;padding:0 20px 40px;">
+        <div style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <h2 style="font-size:0.9rem;color:#1e293b;margin:0;">
+                    👥 Temps de consultation des procédures
+                    <button id="employee-time-refresh" class="btn btn-outline btn-sm" style="margin-left:8px;">🔄</button>
+                </h2>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <button id="emp-time-today" class="btn btn-outline btn-sm">📅 Aujourd'hui</button>
+                    <button id="emp-time-all" class="btn btn-outline btn-sm" style="border-color:#7cc3ef;">🗓️ Tout</button>
+                </div>
+            </div>
+
+            <!-- Totaux par employé -->
+            <div id="emp-time-totals" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+
+            <!-- Tableau des sessions -->
+            <div class="table-container" style="margin-bottom:0;">
+                <table id="emp-time-table" style="min-width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Employé</th>
+                            <th>Connexion</th>
+                            <th>Déconnexion</th>
+                            <th>Temps actif</th>
+                            <th>Appareil</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emp-time-tbody">
+                        <tr>
+                            <td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">
+                                Chargement des données...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <div class="container text-center">
             <p>&copy; 2026 Véloc'Annecy · <a href="index.html" style="color:#64748b;text-decoration:underline;font-size:0.8rem;">Retour au site</a></p>
@@ -563,5 +606,131 @@
     <div id="toast" class="toast"></div>
     <script src="supabase.js"></script>
     <script src="admin.js"></script>
+    <script>
+        // ============================================================
+        // TEMPS DE CONSULTATION DES PROCÉDURES (EMPLOYÉS)
+        // ============================================================
+        let empTimeMode = 'all'; // 'all' | 'today'
+
+        function formatDur(totalSeconds) {
+            totalSeconds = Math.max(0, Math.round(totalSeconds || 0));
+            if (totalSeconds === 0) return '0s';
+            if (totalSeconds < 60) return totalSeconds + 's';
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            if (m < 60) return s > 0 ? m + 'min ' + s + 's' : m + 'min';
+            const h = Math.floor(m / 60);
+            const rm = m % 60;
+            return rm > 0 ? h + 'h ' + rm + 'min' : h + 'h';
+        }
+
+        function formatDateTime(iso) {
+            if (!iso) return '—';
+            try {
+                const d = new Date(iso);
+                return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' +
+                    d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            } catch { return '—'; }
+        }
+
+        async function loadEmployeeTime() {
+            const tbody = document.getElementById('emp-time-tbody');
+            const totalsEl = document.getElementById('emp-time-totals');
+            if (!tbody || !totalsEl) return;
+
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Chargement...</td></tr>';
+            totalsEl.innerHTML = '';
+
+            // Attendre que Supabase soit initialisé par admin.js
+            if (!window._supabase) {
+                try { initSupabase(); } catch (e) { /* déjà initialisé */ }
+            }
+
+            if (!window._supabase) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Supabase non configuré (mode local).</td></tr>';
+                return;
+            }
+
+            try {
+                let query = window._supabase
+                    .from('employee_sessions')
+                    .select('id,employee_name,login_time,logout_time,active_seconds,device_name')
+                    .order('login_time', { ascending: false })
+                    .limit(200);
+
+                if (empTimeMode === 'today') {
+                    const start = new Date();
+                    start.setHours(0, 0, 0, 0);
+                    query = query.gte('login_time', start.toISOString());
+                }
+
+                const { data, error } = await query;
+                if (error) throw error;
+
+                const sessions = data || [];
+
+                // --- Totaux par employé ---
+                const totals = {};
+                sessions.forEach(s => {
+                    const name = (s.employee_name || 'Inconnu');
+                    const key = name.toLowerCase();
+                    if (!totals[key]) {
+                        totals[key] = { employee: name, sessionCount: 0, totalSeconds: 0 };
+                    }
+                    totals[key].sessionCount++;
+                    totals[key].totalSeconds += Math.max(0, Math.round(s.active_seconds || 0));
+                });
+
+                const totalsSorted = Object.values(totals).sort((a, b) => b.totalSeconds - a.totalSeconds);
+
+                totalsEl.innerHTML = totalsSorted.map(t =>
+                    '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;min-width:120px;">' +
+                    '<div style="font-size:0.65rem;color:var(--text-muted);font-weight:600;">' + t.employee + '</div>' +
+                    '<div style="font-size:1rem;font-weight:800;color:#1e293b;">' + formatDur(t.totalSeconds) + '</div>' +
+                    '<div style="font-size:0.6rem;color:var(--text-muted);">' + t.sessionCount + ' session(s)</div>' +
+                    '</div>'
+                ).join('') ||
+                    '<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;">Aucune donnée.</div>';
+
+                // --- Tableau des sessions ---
+                if (sessions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Aucune session enregistrée.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = sessions.map(s =>
+                    '<tr>' +
+                    '<td style="font-weight:700;color:#1e293b;">' + (s.employee_name || '—') + '</td>' +
+                    '<td>' + formatDateTime(s.login_time) + '</td>' +
+                    '<td>' + formatDateTime(s.logout_time) + '</td>' +
+                    '<td style="font-weight:700;color:#065f46;">' + formatDur(s.active_seconds) + '</td>' +
+                    '<td>' + (s.device_name || '—') + '</td>' +
+                    '</tr>'
+                ).join('');
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);font-style:italic;">Erreur : ' + e.message + '</td></tr>';
+            }
+        }
+
+        // Boutons filtre
+        document.getElementById('emp-time-today').addEventListener('click', () => {
+            empTimeMode = 'today';
+            document.getElementById('emp-time-today').style.borderColor = '#7cc3ef';
+            document.getElementById('emp-time-all').style.borderColor = 'var(--border)';
+            loadEmployeeTime();
+        });
+
+        document.getElementById('emp-time-all').addEventListener('click', () => {
+            empTimeMode = 'all';
+            document.getElementById('emp-time-all').style.borderColor = '#7cc3ef';
+            document.getElementById('emp-time-today').style.borderColor = 'var(--border)';
+            loadEmployeeTime();
+        });
+
+        document.getElementById('employee-time-refresh').addEventListener('click', loadEmployeeTime);
+
+        // Charger après que admin.js ait initialisé Supabase (avec un délai)
+        setTimeout(loadEmployeeTime, 2500);
+    </script>
 </body>
 </html>

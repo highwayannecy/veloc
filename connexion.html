@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion employés - Véloc'Annecy</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <style>
+        /* ===== Styles spécifiques à la page Connexion ===== */
+        .login-section {
+            min-height: calc(100vh - 200px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 0;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e0f2fe 100%);
+        }
+
+        .login-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 45px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            text-align: center;
+            border-top: 5px solid var(--primary);
+        }
+
+        .login-card .login-icon {
+            font-size: 3.2rem;
+            margin-bottom: 10px;
+        }
+
+        .login-card h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        .login-card .login-subtitle {
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .login-field {
+            text-align: left;
+        }
+
+        .login-field label {
+            display: block;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--dark);
+            margin-bottom: 6px;
+        }
+
+        .login-field input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-family: inherit;
+            color: var(--dark);
+            outline: none;
+            transition: border-color 0.2s;
+            background: #f8fafc;
+            text-transform: capitalize;
+        }
+
+        .login-field input:focus {
+            border-color: var(--primary);
+            background: var(--white);
+        }
+
+        .login-error {
+            background: #fef2f2;
+            color: #b91c1c;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: none;
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--secondary);
+            color: var(--dark);
+            border: none;
+            border-radius: 50px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-login:hover {
+            background: #f4a261;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 183, 3, 0.3);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        /* Suggestions de prénoms */
+        .login-suggestions {
+            margin-top: 18px;
+            text-align: center;
+        }
+
+        .login-suggestions p {
+            font-size: 0.8rem;
+            color: var(--text);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .suggestion-chip {
+            padding: 6px 14px;
+            background: #e0f2fe;
+            color: #0369a1;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            text-transform: capitalize;
+        }
+
+        .suggestion-chip:hover {
+            background: var(--primary);
+            color: var(--white);
+            transform: translateY(-1px);
+        }
+
+        .login-back {
+            display: inline-block;
+            margin-top: 25px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .login-back:hover {
+            color: var(--primary-hover);
+        }
+
+        .login-session-info {
+            margin-top: 20px;
+            padding: 12px;
+            background: #f0fdf4;
+            border-left: 4px solid #10b981;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.8rem;
+            color: #065f46;
+            text-align: left;
+            display: none;
+        }
+
+        .login-session-info.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Bandeau Alerte -->
+    <div class="alert-banner">
+        <span>🔒 Espace employés — Véloc'Annecy</span>
+    </div>
+
+    <!-- En-tête / Navigation -->
+    <header class="with-banner">
+        <div class="container header-flex">
+            <div class="logo">
+                <a href="index.html"><img src="assets/logo_veloc.png" alt="Véloc'Annecy Logo" class="logo-img"></a>
+            </div>
+
+            <button class="burger-menu" id="burger-btn" aria-label="Ouvrir le menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+
+            <nav id="nav-menu">
+                <a href="index.html">← Retour au site</a>
+                <a href="admin.html">⚙️ Admin</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Section Connexion -->
+    <section class="login-section">
+        <div class="container">
+            <div class="login-card">
+                <div class="login-icon">👋</div>
+                <h1>Connexion employés</h1>
+                <p class="login-subtitle">Entrez votre prénom pour accéder aux procédures internes de l'entreprise.</p>
+
+                <div class="login-session-info" id="session-info">
+                    ✅ Session déjà démarrée en tant que <strong id="session-name"></strong>.
+                    <a href="procedures.html" style="font-weight:700; color:#065f46;">Continuer →</a>
+                </div>
+
+                <form class="login-form" id="login-form">
+                    <div class="login-field">
+                        <label for="employee-name">Votre prénom</label>
+                        <input type="text" id="employee-name" placeholder="Ex : Jean" autocomplete="given-name" required maxlength="30" autofocus>
+                    </div>
+
+                    <div class="login-error" id="login-error"></div>
+
+                    <button type="submit" class="btn-login">📋 Accéder aux procédures</button>
+                </form>
+
+                <div class="login-suggestions" id="suggestions-box" style="display:none;">
+                    <p>👥 Ou choisissez votre prénom :</p>
+                    <div class="suggestion-chips" id="suggestion-chips"></div>
+                </div>
+
+                <a href="index.html" class="login-back">← Retour à l'accueil</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container text-center">
+            <p>&copy; 2026 Véloc'Annecy - Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // CONNEXION EMPLOYÉS — VÉLOC'ANNECY
+        // ==========================================
+        const SESSION_KEY = 'veloc_employee_session';
+
+        // --- Configuration Supabase ---
+        initSupabase();
+
+        // --- Vérifier si une session existe déjà ---
+        function getStoredSession() {
+            try {
+                const raw = localStorage.getItem(SESSION_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (!session.employeeName || !session.sessionId) return null;
+                return session;
+            } catch {
+                return null;
+            }
+        }
+
+        function showExistingSession() {
+            const session = getStoredSession();
+            if (!session) return;
+            document.getElementById('session-name').textContent = session.employeeName;
+            document.getElementById('session-info').classList.add('show');
+        }
+
+        // --- Suggestions de prénoms depuis Supabase ---
+        async function loadSuggestions() {
+            if (!window._supabase) return;
+            try {
+                // Liste des prénoms qui ont récemment été connectés
+                const { data, error } = await window._supabase
+                    .from('employee_sessions')
+                    .select('employee_name')
+                    .order('login_time', { ascending: false })
+                    .limit(10);
+                if (error || !data || data.length === 0) return;
+
+                // Prénoms uniques
+                const names = [];
+                const seen = new Set();
+                for (const row of data) {
+                    const name = (row.employee_name || '').trim();
+                    if (!name || seen.has(name.toLowerCase())) continue;
+                    seen.add(name.toLowerCase());
+                    names.push(name);
+                    if (names.length >= 5) break;
+                }
+
+                if (names.length === 0) return;
+
+                const box = document.getElementById('suggestions-box');
+                const chips = document.getElementById('suggestion-chips');
+                chips.innerHTML = '';
+                names.forEach(name => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'suggestion-chip';
+                    btn.textContent = name;
+                    btn.addEventListener('click', () => {
+                        document.getElementById('employee-name').value = name;
+                        document.getElementById('employee-name').focus();
+                    });
+                    chips.appendChild(btn);
+                });
+                box.style.display = 'block';
+            } catch (e) {
+                // Silencieux — les suggestions sont optionnelles
+            }
+        }
+
+        // --- Démarrer la session ---
+        async function startSession(name) {
+            let sessionId = null;
+            let dbOnline = false;
+
+            // 1. Enregistrer dans Supabase
+            if (window._supabase) {
+                try {
+                    const deviceName = detectDevice();
+                    const { data, error } = await window._supabase
+                        .from('employee_sessions')
+                        .insert([{
+                            employee_name: name,
+                            device_name: deviceName,
+                            user_agent: navigator.userAgent.slice(0, 250)
+                        }])
+                        .select('id')
+                        .single();
+                    if (!error && data) {
+                        sessionId = data.id;
+                        dbOnline = true;
+                    }
+                } catch (e) {
+                    // Si Supabase n'est pas disponible, on continue en mode local
+                    console.warn('⚠️ Session non enregistrée sur Supabase:', e.message);
+                }
+            }
+
+            // 2. Créer l'objet session local (fallback)
+            if (!sessionId) {
+                sessionId = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            }
+
+            // 3. Stocker la session
+            const session = {
+                sessionId: sessionId,
+                employeeName: name,
+                loginTime: new Date().toISOString(),
+                deviceName: detectDevice(),
+                dbOnline: dbOnline
+            };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+            // 4. Rediriger vers les procédures
+            window.location.href = 'procedures.html';
+        }
+
+        // --- Détection du type d'appareil ---
+        function detectDevice() {
+            const ua = navigator.userAgent;
+            if (/iPhone/i.test(ua)) return '📱 iPhone';
+            if (/iPad/i.test(ua)) return '📱 iPad';
+            if (/Android/i.test(ua)) return '📱 Android';
+            if (/Mac/i.test(ua)) return '💻 Mac';
+            if (/Windows/i.test(ua)) return '💻 PC Windows';
+            if (/Linux/i.test(ua)) return '💻 Linux';
+            return '📱 Appareil inconnu';
+        }
+
+        // --- Soumission du formulaire ---
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('employee-name');
+            const errorEl = document.getElementById('login-error');
+            const name = input.value.trim();
+
+            // Validation
+            if (!name) {
+                errorEl.textContent = '❌ Veuillez entrer votre prénom.';
+                errorEl.classList.add('show');
+                return;
+            }
+            if (name.length < 2) {
+                errorEl.textContent = '❌ Le prénom doit contenir au moins 2 caractères.';
+                errorEl.classList.add('show');
+                return;
+            }
+            if (!/^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/.test(name)) {
+                errorEl.textContent = '❌ Le prénom ne doit contenir que des lettres.';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            errorEl.classList.remove('show');
+
+            // Normaliser le prénom (première lettre majuscule)
+            const normalized = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+
+            // Désactiver le bouton pendant le traitement
+            const btn = e.target.querySelector('.btn-login');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ Connexion...';
+            }
+
+            await startSession(normalized);
+        });
+
+        // --- Initialisation ---
+        showExistingSession();
+        loadSuggestions();
+    </script>
+    <script src="burger_menu.js"></script>
+</body>
+
+</html>
