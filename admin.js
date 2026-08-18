@@ -8,7 +8,7 @@ const FLEET_STORAGE_KEY = 'veloc_fleet';
 const BIKE_TYPES_KEY = 'veloc_bike_types';
 const WALKIN_KEY = 'veloc_walkin';
 const DEVICE_NAME_KEY = 'veloc_device_name';
-const PIN_CODE = '3300';
+const PIN_CODE = '2011';
 const UNLOCKED_KEY = 'veloc_admin_unlocked';
 
 function getDeviceType() {
