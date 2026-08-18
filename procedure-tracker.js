@@ -7,6 +7,9 @@
     // --- Constantes ---
     const SESSION_KEY = 'veloc_employee_session';
     const VIEWS_KEY_PREFIX = 'veloc_proc_view_';
+    // La clé de reprise inclut le prénom pour éviter qu'un autre employé
+    // ne reprenne la vue d'une procédure déjà consultée par quelqu'un d'autre.
+    // (VIEWS_KEY_CURRENT est définie plus bas après procId)
 
     // Session de connexion (shared avec connexion.html / procedures.html)
     function getSession() {
@@ -36,6 +39,8 @@
     // Identifiants de la procédure lue
     const procId = new URLSearchParams(window.location.search).get('id') || '';
     const procTitle = document.title;
+    // Initialisé dans la constante après procId (JS hoisting des const)
+    const VIEWS_KEY_CURRENT = VIEWS_KEY_PREFIX + (session ? session.employeeName.toLowerCase() : '') + '_' + procId;
 
     if (!session || !session.employeeName) {
         // Pas de session → redirection vers la connexion
@@ -94,7 +99,7 @@
         } catch (e) {
             viewId = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         }
-        localStorage.setItem(VIEWS_KEY_PREFIX + procId + '_viewId', viewId || '');
+        localStorage.setItem(VIEWS_KEY_CURRENT + '_viewId', viewId || '');
     }
 
     // --- Synchronisation du temps ---
@@ -185,17 +190,18 @@
 
         // Appelé par procedure.html une fois le DOM prêt
         init: async function () {
-            const storedId = localStorage.getItem(VIEWS_KEY_PREFIX + procId + '_viewId');
+            const storedId = localStorage.getItem(VIEWS_KEY_CURRENT + '_viewId');
 
-            // Tentative de reprise d'une vue existante (si elle existe côté serveur)
+            // Tentative de reprise d'une vue existante pour CET employé
             if (storedId && !String(storedId).startsWith('local_')) {
                 try {
                     const { data, error } = await window._supabase
                         .from('employee_procedure_views')
-                        .select('id')
+                        .select('id,employee_name')
                         .eq('id', storedId)
                         .maybeSingle();
-                    if (!error && data) {
+                    // Reprise UNIQUEMENT si la vue appartient bien à l'employé courant
+                    if (!error && data && data.employee_name === session.employeeName) {
                         viewId = storedId;
                         // Reprise de la vue existante → on démarre les timers
                         startTimers();
@@ -204,8 +210,8 @@
                 } catch (e) { /* fallback */ }
             }
 
-            // Sinon créer une nouvelle vue, puis démarrer les timers
-            localStorage.removeItem(VIEWS_KEY_PREFIX + procId + '_viewId');
+            // Sinon créer une nouvelle vue pour cet employé, puis démarrer les timers
+            localStorage.removeItem(VIEWS_KEY_CURRENT + '_viewId');
             await createView();
             startTimers();
         }
