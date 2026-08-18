@@ -4,6 +4,7 @@
 -- Statuts : NULL (attente), 'arrived' (venu), 'noshow' (pas venu)
 -- ============================================================
 
+DROP TABLE IF EXISTS employee_procedure_views;
 DROP TABLE IF EXISTS employee_sessions;
 DROP TABLE IF EXISTS reservation_items;
 DROP TABLE IF EXISTS reservations;
@@ -100,33 +101,36 @@ CREATE INDEX idx_reservations_status ON reservations (status);
 CREATE INDEX idx_reservation_items_reservation ON reservation_items (reservation_id);
 CREATE INDEX idx_fleet_history_date ON fleet_history (date);
 
-CREATE TABLE employee_sessions (
+CREATE TABLE employee_procedure_views (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     employee_name TEXT NOT NULL,
-    login_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    logout_time TIMESTAMP WITH TIME ZONE,
+    procedure_key TEXT NOT NULL,
+    procedure_title TEXT NOT NULL,
+    view_start TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    view_end TIMESTAMP WITH TIME ZONE,
     active_seconds INTEGER DEFAULT 0,
     device_name TEXT DEFAULT '',
-    user_agent TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_employee_sessions_name ON employee_sessions (employee_name);
-CREATE INDEX idx_employee_sessions_login ON employee_sessions (login_time);
+CREATE INDEX idx_epv_employee ON employee_procedure_views (employee_name);
+CREATE INDEX idx_epv_procedure ON employee_procedure_views (procedure_key);
+CREATE INDEX idx_epv_start ON employee_procedure_views (view_start);
 
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fleet_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE walkin_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bike_types ENABLE ROW LEVEL SECURITY;
-ALTER TABLE employee_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employee_procedure_views ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Accès complet réservations" ON reservations FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet items" ON reservation_items FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet historique flotte" ON fleet_history FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet flux libre" ON walkin_history FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Accès complet types vélos" ON bike_types FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "Accès complet sessions employés" ON employee_sessions FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Accès complet vues procédures" ON employee_procedure_views FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Accès complet vues procédures auth" ON employee_procedure_views FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- REALTIME : active la réplication temps réel pour les abonnements
@@ -141,7 +145,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE reservation_items;
 ALTER PUBLICATION supabase_realtime ADD TABLE fleet_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE walkin_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE bike_types;
-ALTER PUBLICATION supabase_realtime ADD TABLE employee_sessions;
+ALTER PUBLICATION supabase_realtime ADD TABLE employee_procedure_views;
 
 -- ============================================================
 -- OPTIONNEL : recevoir les lignes complètes (anciennes + nouvelles)

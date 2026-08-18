@@ -269,16 +269,13 @@
         // ==========================================
         const SESSION_KEY = 'veloc_employee_session';
 
-        // --- Configuration Supabase ---
-        initSupabase();
-
         // --- Vérifier si une session existe déjà ---
         function getStoredSession() {
             try {
                 const raw = localStorage.getItem(SESSION_KEY);
                 if (!raw) return null;
                 const session = JSON.parse(raw);
-                if (!session.employeeName || !session.sessionId) return null;
+                if (!session.employeeName) return null;
                 return session;
             } catch {
                 return null;
@@ -292,35 +289,18 @@
             document.getElementById('session-info').classList.add('show');
         }
 
-        // --- Suggestions de prénoms depuis Supabase ---
-        async function loadSuggestions() {
-            if (!window._supabase) return;
+        // --- Suggestions de prénoms depuis localStorage (derniers employés) ---
+        function loadSuggestions() {
             try {
-                // Liste des prénoms qui ont récemment été connectés
-                const { data, error } = await window._supabase
-                    .from('employee_sessions')
-                    .select('employee_name')
-                    .order('login_time', { ascending: false })
-                    .limit(10);
-                if (error || !data || data.length === 0) return;
-
-                // Prénoms uniques
-                const names = [];
-                const seen = new Set();
-                for (const row of data) {
-                    const name = (row.employee_name || '').trim();
-                    if (!name || seen.has(name.toLowerCase())) continue;
-                    seen.add(name.toLowerCase());
-                    names.push(name);
-                    if (names.length >= 5) break;
-                }
-
-                if (names.length === 0) return;
+                const raw = localStorage.getItem('veloc_employee_names');
+                if (!raw) return;
+                const names = JSON.parse(raw);
+                if (!Array.isArray(names) || names.length === 0) return;
 
                 const box = document.getElementById('suggestions-box');
                 const chips = document.getElementById('suggestion-chips');
                 chips.innerHTML = '';
-                names.forEach(name => {
+                names.slice(0, 5).forEach(name => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'suggestion-chip';
@@ -332,97 +312,30 @@
                     chips.appendChild(btn);
                 });
                 box.style.display = 'block';
-            } catch (e) {
-                // Silencieux — les suggestions sont optionnelles
+            } catch {
+                // Silencieux
             }
         }
 
-        // --- Attendre que Supabase soit prêt (avec retries) ---
-        async function waitForSupabase(maxAttempts = 5) {
-            for (let i = 0; i < maxAttempts; i++) {
-                if (!window._supabase) {
-                    try { initSupabase(); } catch (e) { /* déjà init */ }
-                }
-                if (window._supabase) {
-                    try {
-                        const ready = await isSupabaseReady();
-                        if (ready) return true;
-                    } catch (e) { /* pas encore prêt */ }
-                }
-                await new Promise(r => setTimeout(r, 500));
-            }
-            return false;
-        }
-
-        // --- Démarrer la session ---
-        async function startSession(name) {
-            let sessionId = null;
-            let dbOnline = false;
-            let dbError = '';
-
-            // 1. Attendre que Supabase soit prêt
-            const supabaseReady = await waitForSupabase();
-
-            // 2. Enregistrer dans Supabase
-            if (supabaseReady && window._supabase) {
-                try {
-                    const deviceName = detectDevice();
-                    const { data, error } = await window._supabase
-                        .from('employee_sessions')
-                        .insert([{
-                            employee_name: name,
-                            device_name: deviceName,
-                            user_agent: navigator.userAgent.slice(0, 250)
-                        }])
-                        .select('id')
-                        .single();
-                    if (!error && data) {
-                        sessionId = data.id;
-                        dbOnline = true;
-                    } else {
-                        dbError = error ? error.message : 'Erreur inconnue';
-                    }
-                } catch (e) {
-                    dbError = e.message;
-                }
-            } else {
-                dbError = 'Supabase non disponible';
-            }
-
-            // 3. Créer l'objet session local (fallback)
-            if (!sessionId) {
-                sessionId = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-            }
-
-            // 4. Stocker la session
+        // --- Démarrer la session (localStorage uniquement) ---
+        function startSession(name) {
             const session = {
-                sessionId: sessionId,
                 employeeName: name,
-                loginTime: new Date().toISOString(),
-                deviceName: detectDevice(),
-                dbOnline: dbOnline,
-                dbError: dbError
+                loginTime: new Date().toISOString()
             };
             localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 
-            if (!dbOnline) {
-                console.warn('⚠️ Session en mode local (Supabase indisponible):', dbError);
-            }
+            // Mémoriser le prénom pour les suggestions
+            try {
+                const existing = JSON.parse(localStorage.getItem('veloc_employee_names') || '[]');
+                if (!existing.some(n => n.toLowerCase() === name.toLowerCase())) {
+                    existing.unshift(name);
+                    localStorage.setItem('veloc_employee_names', JSON.stringify(existing.slice(0, 10)));
+                }
+            } catch { /* silencieux */ }
 
-            // 5. Rediriger vers les procédures
+            // Rediriger vers le sommaire des procédures
             window.location.href = 'procedures.html';
-        }
-
-        // --- Détection du type d'appareil ---
-        function detectDevice() {
-            const ua = navigator.userAgent;
-            if (/iPhone/i.test(ua)) return '📱 iPhone';
-            if (/iPad/i.test(ua)) return '📱 iPad';
-            if (/Android/i.test(ua)) return '📱 Android';
-            if (/Mac/i.test(ua)) return '💻 Mac';
-            if (/Windows/i.test(ua)) return '💻 PC Windows';
-            if (/Linux/i.test(ua)) return '💻 Linux';
-            return '📱 Appareil inconnu';
         }
 
         // --- Soumission du formulaire ---

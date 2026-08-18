@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procédure - Véloc'Annecy</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="procedures-data.js"></script>
+    <style>
+        /* ===== Badge session employé ===== */
+        .session-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 7px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-left: 15px;
+            white-space: nowrap;
+        }
+
+        .session-badge .session-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .btn-logout {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: none;
+            border: 2px solid #e2e8f0;
+            color: var(--dark);
+            padding: 7px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: all 0.2s;
+            font-family: inherit;
+            text-decoration: none;
+        }
+
+        .btn-logout:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        @media (max-width: 900px) {
+            .session-badge {
+                margin-left: 0;
+            }
+        }
+
+        /* ===== Page procédure unique ===== */
+        .proc-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+
+        .proc-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+
+        .proc-back:hover {
+            color: var(--primary-hover);
+        }
+
+        .proc-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .proc-header .proc-icon {
+            font-size: 2.2rem;
+        }
+
+        .proc-header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        .proc-header .proc-category-badge {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 12px;
+            border-radius: 50px;
+            margin-top: 6px;
+        }
+
+        .proc-body {
+            background: var(--white);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+
+        .proc-not-found {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text);
+        }
+
+        .proc-not-found .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .proc-not-found a {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--primary-hover);
+            text-decoration: underline;
+            font-weight: 600;
+        }
+
+        /* Styles des étapes (hérités de procedures.html) */
+        .proc-content p { margin: 12px 0; color: var(--text); font-size: 0.98rem; line-height: 1.7; }
+        .proc-content strong { color: var(--dark); }
+        .proc-content ul, .proc-content ol { margin: 10px 0 10px 22px; color: var(--text); font-size: 0.95rem; }
+        .proc-content li { margin-bottom: 8px; line-height: 1.6; }
+
+        .proc-tip { background: #f0fdf4; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 15px 0; font-size: 0.92rem; color: #065f46; }
+        .proc-warn { background: #fef2f2; border-left: 4px solid var(--alert); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 15px 0; font-size: 0.92rem; color: #991b1b; }
+        .proc-info { background: #e0f2fe; border-left: 4px solid var(--primary); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 15px 0; font-size: 0.92rem; color: #0369a1; }
+
+        .proc-steps { counter-reset: proc-step; list-style: none; margin-left: 0 !important; }
+        .proc-steps > li { position: relative; padding-left: 44px; counter-increment: proc-step; margin-bottom: 14px; }
+        .proc-steps > li::before { content: counter(proc-step); position: absolute; left: 0; top: 0; background: var(--primary); color: var(--white); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; line-height: 1; }
+
+        .proc-substeps { list-style: decimal; counter-reset: none; margin-top: 8px; margin-left: 24px; }
+        .proc-substeps li { margin-bottom: 6px; }
+        .proc-steps > li > ul { list-style: disc; margin-top: 8px; margin-left: 22px; }
+
+        .proc-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9rem; }
+        .proc-table th { background: var(--primary); color: var(--white); padding: 10px 12px; text-align: left; font-weight: 700; white-space: nowrap; }
+        .proc-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: var(--dark); white-space: normal; }
+        .proc-table tr:hover td { background: #f8fafc; }
+
+        @media (max-width: 600px) {
+            .proc-header h1 { font-size: 1.3rem; }
+            .proc-body { padding: 20px; }
+        }
+
+        @media print {
+            header, .proc-back { display: none !important; }
+            body { background: white; }
+            .proc-body { border: none; box-shadow: none; padding: 0; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Bandeau Alerte -->
+    <div class="alert-banner">
+        <span>📋 Document interne — Procédures Véloc'Annecy</span>
+    </div>
+
+    <!-- En-tête / Navigation -->
+    <header class="with-banner">
+        <div class="container header-flex">
+            <div class="logo">
+                <a href="index.html"><img src="assets/logo_veloc.png" alt="Véloc'Annecy Logo" class="logo-img"></a>
+            </div>
+
+            <button class="burger-menu" id="burger-btn" aria-label="Ouvrir le menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+
+            <nav id="nav-menu">
+                <a href="procedures.html" id="back-link-nav">← Procédures</a>
+                <a href="admin.html">⚙️ Admin</a>
+                <span class="session-badge" id="session-badge" style="display: none;">
+                    <span class="session-dot"></span>
+                    <span id="session-employee-name"></span>
+                </span>
+                <a href="#" class="btn-logout" id="btn-logout" style="display: none;">🚪 Déconnexion</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenu dynamique de la procédure -->
+    <main class="proc-page" id="proc-page">
+        <div id="proc-loading" style="text-align:center; padding: 60px 20px; color: var(--text);">
+            <p>Chargement de la procédure...</p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container text-center">
+            <p>&copy; 2026 Véloc'Annecy - Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // SESSION EMPLOYÉ — VÉLOC'ANNECY
+        // ==========================================
+        const SESSION_KEY = 'veloc_employee_session';
+
+        // Initialiser Supabase
+        initSupabase();
+
+        // Récupérer la session stockée
+        function getSession() {
+            try {
+                const raw = localStorage.getItem(SESSION_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (!session.employeeName) return null;
+                return session;
+            } catch {
+                return null;
+            }
+        }
+
+        const session = getSession();
+
+        // Redirection vers la connexion si pas de session
+        if (!session) {
+            window.location.href = 'connexion.html';
+        } else {
+            // Afficher le badge employé
+            document.getElementById('session-employee-name').textContent = session.employeeName;
+            document.getElementById('session-badge').style.display = 'inline-flex';
+            document.getElementById('btn-logout').style.display = 'inline-flex';
+        }
+
+        // Bouton déconnexion
+        document.getElementById('btn-logout').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.ProcedureTracker) {
+                window.ProcedureTracker.finalize();
+            }
+            window.location.href = 'connexion.html';
+        });
+
+        // ==========================================
+        // AFFICHAGE DE LA PROCÉDURE
+        // ==========================================
+        const params = new URLSearchParams(window.location.search);
+        const procId = params.get('id') || '';
+        const proc = getProcedureById(procId);
+
+        const page = document.getElementById('proc-page');
+        const loading = document.getElementById('proc-loading');
+
+        if (!proc) {
+            page.innerHTML = `
+                <div class="proc-not-found">
+                    <div class="icon">😕</div>
+                    <h2>Procédure introuvable</h2>
+                    <p>La procédure demandée n'existe pas ou a été déplacée.</p>
+                    <a href="procedures.html">← Retour aux procédures</a>
+                </div>
+            `;
+        } else {
+            document.title = proc.title + ' - Véloc\u0027Annecy';
+            page.innerHTML = `
+                <a href="procedures.html" class="proc-back">← Retour aux procédures</a>
+                <div class="proc-header">
+                    <div class="proc-icon">${proc.emoji}</div>
+                    <div>
+                        <h1>${proc.title}</h1>
+                        <span class="proc-category-badge">${proc.category}</span>
+                    </div>
+                </div>
+                <div class="proc-body">
+                    <div class="proc-content">${proc.body}</div>
+                </div>
+            `;
+        }
+
+        loading.remove();
+
+        // ==========================================
+        // DÉMARRAGE DU SUIVI DE LA PROCÉDURE
+        // (uniquement si la procédure existe et si session active)
+        // ==========================================
+        if (proc && session) {
+            // Attendre que Supabase soit initialisé puis lancer le tracker
+            setTimeout(() => {
+                if (window.ProcedureTracker) {
+                    window.ProcedureTracker.init();
+                }
+            }, 600);
+        }
+    </script>
+    <script src="procedure-tracker.js"></script>
+    <script src="burger_menu.js"></script>
+</body>
+
+</html>

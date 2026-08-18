@@ -1,12 +1,13 @@
 /**
- * API Vercel — Temps de consultation des procédures par les employés
+ * API Vercel — Temps de lecture des procédures par les employés
  *
  * Endpoints :
- *   GET /api/employee-time                 → toutes les sessions
- *   GET /api/employee-time?employee=Jean   → filtre par employé
- *   GET /api/employee-time?from=2026-08-01 → sessions depuis une date
- *   GET /api/employee-time?to=2026-08-17   → sessions jusqu'à une date
- *   GET /api/employee-time?today=1         → sessions du jour uniquement
+ *   GET /api/employee-time                       → toutes les lectures
+ *   GET /api/employee-time?employee=Jean         → filtre par employé
+ *   GET /api/employee-time?procedure=ouverture   → filtre par procédure (clé)
+ *   GET /api/employee-time?from=2026-08-01       → lectures depuis une date
+ *   GET /api/employee-time?to=2026-08-17         → lectures jusqu'à une date
+ *   GET /api/employee-time?today=1               → lectures du jour uniquement
  *
  * Variables d'environnement requises (Vercel → Settings → Environment Variables) :
  *   SUPABASE_URL       = URL du projet Supabase (ex: https://xxxx.supabase.co)
@@ -72,8 +73,8 @@ function formatDuration(totalSeconds) {
 /**
  * Calcule le temps actif total à partir des secondes.
  */
-function computeActiveSeconds(session) {
-    return Math.max(0, Math.round(session.active_seconds || 0));
+function computeActiveSeconds(row) {
+    return Math.max(0, Math.round(row.active_seconds || 0));
 }
 
 // ============================================================
@@ -84,13 +85,13 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'no-store');
 
-    const { employee, from, to, today, limit = '100' } = req.query;
+    const { employee, procedure, from, to, today, limit = '100' } = req.query;
 
     try {
         // ---------- CONSTRUCTION DE LA REQUÊTE ----------
         const query = {
-            select: 'id,employee_name,login_time,logout_time,active_seconds,device_name,user_agent,created_at',
-            order: 'login_time.desc',
+            select: 'id,employee_name,procedure_key,procedure_title,view_start,view_end,active_seconds,device_name,created_at',
+            order: 'view_start.desc',
             limit: String(Math.min(parseInt(limit, 10) || 100, 500)),
         };
 
@@ -98,10 +99,14 @@ module.exports = async (req, res) => {
             query['employee_name'] = `ilike.${employee}`;
         }
 
+        if (procedure) {
+            query['procedure_key'] = `ilike.${procedure}`;
+        }
+
         if (today === '1') {
-            // Sessions du jour (fuseau serveur UTC — bonne approximation)
+            // Lectures du jour (fuseau serveur UTC — bonne approximation)
             const todayStr = new Date().toISOString().slice(0, 10);
-            query['login_time'] = `gte.${todayStr}T00:00:00Z`;
+            query['view_start'] = `gte.${todayStr}T00:00:00Z`;
         }
 
         if (from) {
@@ -109,7 +114,7 @@ module.exports = async (req, res) => {
             if (isNaN(fromDate.getTime())) {
                 return res.status(400).json({ error: 'Paramètre "from" invalide. Format: YYYY-MM-DD' });
             }
-            query['login_time'] = `gte.${fromDate.toISOString()}`;
+            query['view_start'] = `gte.${fromDate.toISOString()}`;
         }
 
         if (to) {
@@ -119,56 +124,86 @@ module.exports = async (req, res) => {
             }
             // Fin de journée inclusive
             toDate.setHours(23, 59, 59, 999);
-            query['login_time'] = query['login_time']
-                ? `${query['login_time']}&login_time=lte.${toDate.toISOString()}`
+            query['view_start'] = query['view_start']
+                ? `${query['view_start']}&view_start=lte.${toDate.toISOString()}`
                 : `lte.${toDate.toISOString()}`;
         }
 
         // ---------- EXÉCUTION ----------
-        const sessions = await supabaseFetch('employee_sessions', query);
+        const views = await supabaseFetch('employee_procedure_views', query);
 
         // ---------- AGRÉGATION ----------
-        const formattedSessions = sessions.map(s => ({
-            id: s.id,
-            employee: s.employee_name || '',
-            loginTime: s.login_time,
-            logoutTime: s.logout_time,
-            activeSeconds: computeActiveSeconds(s),
-            activeDuration: formatDuration(computeActiveSeconds(s)),
-            device: s.device_name || '',
-            createdAt: s.created_at,
+        const formattedViews = views.map(v => ({
+            id: v.id,
+            employee: v.employee_name || '',
+            procedureKey: v.procedure_key || '',
+            procedureTitle: v.procedure_title || v.procedure_key || '',
+            viewStart: v.view_start,
+            viewEnd: v.view_end,
+            activeSeconds: computeActiveSeconds(v),
+            activeDuration: formatDuration(computeActiveSeconds(v)),
+            device: v.device_name || '',
+            createdAt: v.created_at,
         }));
 
-        // Totaux par employé (sur toutes les sessions retournées)
+        // Totaux par (employé × procédure)
+        const totalsByRow = {};
+        formattedViews.forEach(v => {
+            const key = v.employee.toLowerCase() + '||' + v.procedureKey.toLowerCase();
+            if (!totalsByRow[key]) {
+                totalsByRow[key] = {
+                    employee: v.employee,
+                    procedureKey: v.procedureKey,
+                    procedureTitle: v.procedureTitle,
+                    openCount: 0,
+                    totalActiveSeconds: 0,
+                    totalActiveDuration: '',
+                    lastView: v.viewStart || null,
+                };
+            }
+            totalsByRow[key].openCount++;
+            totalsByRow[key].totalActiveSeconds += v.activeSeconds;
+            if (v.viewStart && (!totalsByRow[key].lastView || new Date(v.viewStart) > new Date(totalsByRow[key].lastView))) {
+                totalsByRow[key].lastView = v.viewStart;
+            }
+        });
+        Object.values(totalsByRow).forEach(t => {
+            t.totalActiveDuration = formatDuration(t.totalActiveSeconds);
+        });
+
+        // Totaux par employé
         const totalsByEmployee = {};
-        formattedSessions.forEach(s => {
-            const key = s.employee.toLowerCase();
+        formattedViews.forEach(v => {
+            const key = v.employee.toLowerCase();
             if (!totalsByEmployee[key]) {
                 totalsByEmployee[key] = {
-                    employee: s.employee,
-                    sessionCount: 0,
+                    employee: v.employee,
+                    procedureCount: 0,
                     totalActiveSeconds: 0,
                     totalActiveDuration: '',
                 };
             }
-            totalsByEmployee[key].sessionCount++;
-            totalsByEmployee[key].totalActiveSeconds += s.activeSeconds;
+            totalsByEmployee[key].procedureCount++;
+            totalsByEmployee[key].totalActiveSeconds += v.activeSeconds;
         });
         Object.values(totalsByEmployee).forEach(t => {
             t.totalActiveDuration = formatDuration(t.totalActiveSeconds);
         });
 
-        const totalActiveAll = formattedSessions.reduce((acc, s) => acc + s.activeSeconds, 0);
+        const totalActiveAll = formattedViews.reduce((acc, v) => acc + v.activeSeconds, 0);
 
         return res.status(200).json({
             generatedAt: new Date().toISOString(),
-            count: formattedSessions.length,
+            count: formattedViews.length,
             totalActiveSeconds: totalActiveAll,
             totalActiveDuration: formatDuration(totalActiveAll),
             totalsByEmployee: Object.values(totalsByEmployee).sort((a, b) =>
                 b.totalActiveSeconds - a.totalActiveSeconds
             ),
-            sessions: formattedSessions,
+            totalsByProcedure: Object.values(totalsByRow).sort((a, b) =>
+                b.totalActiveSeconds - a.totalActiveSeconds
+            ),
+            views: formattedViews,
         });
     } catch (err) {
         return res.status(500).json({ error: err.message });

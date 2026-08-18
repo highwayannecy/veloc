@@ -557,12 +557,12 @@
         </div>
     </div>
 
-    <!-- ⏱️ TEMPS DE CONSULTATION DES EMPLOYÉS -->
+    <!-- ⏱️ TEMPS DE CONSULTATION PAR PROCÉDURE -->
     <div style="max-width:1400px;margin:0 auto;padding:0 20px 40px;">
         <div style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border:1px solid var(--border);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
                 <h2 style="font-size:0.9rem;color:#1e293b;margin:0;">
-                    👥 Temps de consultation des procédures
+                    👥 Temps de lecture par procédure
                     <button id="employee-time-refresh" class="btn btn-outline btn-sm" style="margin-left:8px;">🔄</button>
                 </h2>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -574,16 +574,16 @@
             <!-- Totaux par employé -->
             <div id="emp-time-totals" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
 
-            <!-- Tableau des sessions -->
+            <!-- Tableau des temps par procédure -->
             <div class="table-container" style="margin-bottom:0;">
                 <table id="emp-time-table" style="min-width:100%;">
                     <thead>
                         <tr>
                             <th>Employé</th>
-                            <th>Connexion</th>
-                            <th>Déconnexion</th>
-                            <th>Temps actif</th>
-                            <th>Appareil</th>
+                            <th>Procédure</th>
+                            <th>Ouvertures</th>
+                            <th>Temps total</th>
+                            <th>Dernière lecture</th>
                         </tr>
                     </thead>
                     <tbody id="emp-time-tbody">
@@ -653,58 +653,81 @@
 
             try {
                 let query = window._supabase
-                    .from('employee_sessions')
-                    .select('id,employee_name,login_time,logout_time,active_seconds,device_name')
-                    .order('login_time', { ascending: false })
-                    .limit(200);
+                    .from('employee_procedure_views')
+                    .select('id,employee_name,procedure_key,procedure_title,view_start,view_end,active_seconds,device_name')
+                    .order('view_start', { ascending: false })
+                    .limit(500);
 
                 if (empTimeMode === 'today') {
                     const start = new Date();
                     start.setHours(0, 0, 0, 0);
-                    query = query.gte('login_time', start.toISOString());
+                    query = query.gte('view_start', start.toISOString());
                 }
 
                 const { data, error } = await query;
                 if (error) throw error;
 
-                const sessions = data || [];
+                const views = data || [];
 
-                // --- Totaux par employé ---
-                const totals = {};
-                sessions.forEach(s => {
-                    const name = (s.employee_name || 'Inconnu');
-                    const key = name.toLowerCase();
-                    if (!totals[key]) {
-                        totals[key] = { employee: name, sessionCount: 0, totalSeconds: 0 };
+                // --- Agréger par employé × procédure ---
+                const agg = {};
+                views.forEach(v => {
+                    const empName = (v.employee_name || 'Inconnu');
+                    const procName = (v.procedure_title || v.procedure_key || 'Inconnue');
+                    const key = empName.toLowerCase() + '||' + procName.toLowerCase();
+                    if (!agg[key]) {
+                        agg[key] = {
+                            employee: empName,
+                            procedure: procName,
+                            openCount: 0,
+                            totalSeconds: 0,
+                            lastView: v.view_start || null
+                        };
                     }
-                    totals[key].sessionCount++;
-                    totals[key].totalSeconds += Math.max(0, Math.round(s.active_seconds || 0));
+                    agg[key].openCount++;
+                    agg[key].totalSeconds += Math.max(0, Math.round(v.active_seconds || 0));
+                    if (v.view_start && (!agg[key].lastView || new Date(v.view_start) > new Date(agg[key].lastView))) {
+                        agg[key].lastView = v.view_start;
+                    }
                 });
 
-                const totalsSorted = Object.values(totals).sort((a, b) => b.totalSeconds - a.totalSeconds);
+                const aggRows = Object.values(agg).sort((a, b) => b.totalSeconds - a.totalSeconds);
+
+                // --- Totaux par employé ---
+                const totalsByEmp = {};
+                aggRows.forEach(r => {
+                    const key = r.employee.toLowerCase();
+                    if (!totalsByEmp[key]) {
+                        totalsByEmp[key] = { employee: r.employee, totalSeconds: 0, procCount: 0 };
+                    }
+                    totalsByEmp[key].totalSeconds += r.totalSeconds;
+                    totalsByEmp[key].procCount++;
+                });
+
+                const totalsSorted = Object.values(totalsByEmp).sort((a, b) => b.totalSeconds - a.totalSeconds);
 
                 totalsEl.innerHTML = totalsSorted.map(t =>
-                    '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;min-width:120px;">' +
+                    '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;min-width:130px;">' +
                     '<div style="font-size:0.65rem;color:var(--text-muted);font-weight:600;">' + t.employee + '</div>' +
                     '<div style="font-size:1rem;font-weight:800;color:#1e293b;">' + formatDur(t.totalSeconds) + '</div>' +
-                    '<div style="font-size:0.6rem;color:var(--text-muted);">' + t.sessionCount + ' session(s)</div>' +
+                    '<div style="font-size:0.6rem;color:var(--text-muted);">' + t.procCount + ' procédure(s)</div>' +
                     '</div>'
                 ).join('') ||
                     '<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;">Aucune donnée.</div>';
 
-                // --- Tableau des sessions ---
-                if (sessions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Aucune session enregistrée.</td></tr>';
+                // --- Tableau des temps par procédure ---
+                if (aggRows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Aucune lecture enregistrée.</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = sessions.map(s =>
+                tbody.innerHTML = aggRows.map(r =>
                     '<tr>' +
-                    '<td style="font-weight:700;color:#1e293b;">' + (s.employee_name || '—') + '</td>' +
-                    '<td>' + formatDateTime(s.login_time) + '</td>' +
-                    '<td>' + formatDateTime(s.logout_time) + '</td>' +
-                    '<td style="font-weight:700;color:#065f46;">' + formatDur(s.active_seconds) + '</td>' +
-                    '<td>' + (s.device_name || '—') + '</td>' +
+                    '<td style="font-weight:700;color:#1e293b;">' + r.employee + '</td>' +
+                    '<td>' + r.procedure + '</td>' +
+                    '<td>' + r.openCount + '</td>' +
+                    '<td style="font-weight:700;color:#065f46;">' + formatDur(r.totalSeconds) + '</td>' +
+                    '<td>' + formatDateTime(r.lastView) + '</td>' +
                     '</tr>'
                 ).join('');
             } catch (e) {
