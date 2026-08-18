@@ -13,9 +13,7 @@
             --border: #e2e8f0;
             --text-muted: #64748b;
             --success: #10b981;
-            --warning: #f59e0b;
             --danger: #ef4444;
-            --info: #3b82f6;
         }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -25,24 +23,6 @@
             background: var(--admin-bg);
         }
         .container { width: 95%; max-width: 1400px; margin: 0 auto; }
-
-        .admin-header {
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
-        }
-        .admin-header h1 { color: #1e293b; font-size: 1.5rem; margin: 0; }
-
-        .device-name-row {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 0.75rem;
-        }
-        .device-name-row label { font-weight: 600; color: var(--text-muted); white-space: nowrap; }
-        .device-name-row input {
-            padding: 4px 8px; border: 2px solid var(--border); border-radius: 6px;
-            font-size: 0.75rem; font-weight: 600; color: #1e293b; outline: none;
-            width: 120px;
-        }
-        .device-name-row input:focus { border-color: #7cc3ef; }
 
         /* PIN */
         .pin-overlay {
@@ -81,256 +61,22 @@
         .pin-numpad .delete { font-size: 1rem; color: var(--text-muted); }
         .pin-numpad .delete:hover { background: #fee2e2; color: var(--danger); }
 
-        /* DATE NAV */
-        .date-nav {
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
-        }
-        .date-nav button {
-            padding: 7px 14px; border: 2px solid var(--border); border-radius: 8px;
-            background: var(--card-bg); font-weight: 700; font-size: 0.9rem;
-            cursor: pointer; color: #1e293b; transition: all 0.15s;
-        }
-        .date-nav button:hover { border-color: #7cc3ef; }
-        .date-nav .date-display {
-            font-size: 1.1rem; font-weight: 800; color: #1e293b;
-            min-width: 120px; text-align: center;
-        }
-        .date-nav input[type="date"] {
-            padding: 6px 10px; border: 2px solid var(--border); border-radius: 8px;
-            font-size: 0.9rem; font-weight: 600; color: #1e293b;
-            flex: 1; max-width: 200px; min-width: 140px;
-        }
-        .date-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
-        @media (max-width: 500px) {
-            .date-nav { gap: 6px; }
-            .date-nav input[type="date"] { max-width: 150px; min-width: 120px; font-size: 0.8rem; }
-            .date-nav button { padding: 5px 10px; font-size: 0.8rem; }
-            .date-display { display: none; }
-        }
-
-        .stock-bar-container {
-            display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap;
-        }
-        .stock-item {
-            flex: 1; min-width: 80px; background: var(--card-bg); border-radius: 8px;
-            padding: 6px 8px; border: 1px solid var(--border); text-align: center;
-        }
-        .stock-item .label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; }
-        .stock-item .count { font-size: 1rem; font-weight: 800; color: #1e293b; }
-        .stock-item .count .avail { color: var(--success); }
-        .stock-item .count .total { color: var(--text-muted); font-weight: 400; }
-        .stock-item .bar { height: 4px; background: #e2e8f0; border-radius: 4px; margin-top: 4px; overflow: hidden; }
-        .stock-item .bar-fill { height: 100%; border-radius: 4px; background: var(--success); transition: width 0.3s; }
-        .stock-item.critical .bar-fill { background: var(--danger); }
-        .stock-item.low .bar-fill { background: var(--warning); }
-
-        .main-layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
-
-        /* MODAL */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.6); z-index: 1000;
-            display: none; align-items: center; justify-content: center;
-            padding: 20px; backdrop-filter: blur(2px);
-        }
-        .modal-overlay.open { display: flex; }
-        .modal-content {
-            background: var(--card-bg); border-radius: 16px;
-            width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
-            padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            position: relative;
-        }
-        .modal-close {
-            position: absolute; top: 12px; right: 16px;
-            background: none; border: none; font-size: 1.5rem;
-            cursor: pointer; color: var(--text-muted); line-height: 1;
-        }
-        .modal-close:hover { color: #1e293b; }
-        .modal-content h2 {
-            font-size: 1.1rem; color: #1e293b; margin: 0 0 16px 0;
-            padding-bottom: 10px; border-bottom: 2px solid #7cc3ef;
-        }
-
-        .form-card {
-            background: transparent; border-radius: 0; padding: 0;
-            border: none; margin-bottom: 0;
-        }
-        .form-group { margin-bottom: 10px; }
-        .form-group label { display: block; font-weight: 600; font-size: 0.8rem; color: #1e293b; margin-bottom: 3px; }
-        .form-group input, .form-group select {
-            width: 100%; padding: 8px 10px; border: 2px solid var(--border); border-radius: 8px;
-            font-size: 0.85rem; font-family: inherit; color: #1e293b; outline: none;
-        }
-        .form-group input:focus, .form-group select:focus { border-color: #7cc3ef; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        @media (max-width: 400px) { .form-row { grid-template-columns: 1fr; } }
-
-        /* Bike qty items */
-        .bike-qty-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 8px 0 4px 0; }
-        .bike-qty-item { display: flex; align-items: center; gap: 3px; background: #f8fafc; border-radius: 6px; padding: 4px 6px; border: 1px solid #e2e8f0; }
-        .bike-qty-item .bike-icon { font-size: 0.9rem; min-width: 18px; text-align: center; }
-        .bike-qty-item .bike-name { font-size: 0.7rem; font-weight: 600; color: #1e293b; }
-        .bike-qty-item .qty-control { display: flex; align-items: center; gap: 0; margin-left: auto; }
-        .bike-qty-item .qty-btn { width: 22px; height: 22px; border: 1px solid #e2e8f0; background: white; border-radius: 4px; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0; transition: all 0.1s; }
-        .bike-qty-item .qty-btn:hover { background: #7cc3ef; color: white; border-color: #7cc3ef; }
-        .bike-qty-item .qty-btn:active { transform: scale(0.95); }
-        .bike-qty-item .qty-value { width: 26px; text-align: center; font-weight: 700; font-size: 0.8rem; border: none; background: transparent; padding: 0; }
-        .bike-qty-item .stock-indicator { font-size: 0.55rem; font-weight: 600; padding: 1px 4px; border-radius: 50px; white-space: nowrap; margin-left: 2px; }
-        .stock-ok { background: #d1fae5; color: #065f46; }
-        .stock-low { background: #fef3c7; color: #92400e; }
-        .stock-no { background: #fee2e2; color: #991b1b; }
-
-        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7cc3ef; }
-        .checkbox-group label { font-weight: 600; font-size: 0.8rem; color: #1e293b; cursor: pointer; }
-        .duration-input { display: none; margin-top: 4px; }
-        .duration-input.show { display: block; }
-
-        .btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
-        .btn:hover { transform: translateY(-1px); }
-        .btn-primary { background: #7cc3ef; color: white; }
-        .btn-primary:hover { background: #0082b4; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover { background: #059669; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-warning { background: var(--warning); color: white; }
-        .btn-warning:hover { background: #d97706; }
-        .btn-outline { background: transparent; border: 2px solid var(--border); color: #1e293b; }
-        .btn-outline:hover { border-color: #7cc3ef; }
-        .btn-sm { padding: 4px 10px; font-size: 0.7rem; }
-        .btn-full { width: 100%; justify-content: center; }
-
-        /* RESERVATIONS */
-        .reservations-list { display: flex; flex-direction: column; gap: 6px; }
-        .reservation-card {
-            display: grid;
-            grid-template-columns: 52px 1fr;
-            grid-template-rows: auto auto auto;
-            gap: 0;
-            background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
-            transition: all 0.15s; font-size: 0.78rem; overflow: hidden;
-            position: relative;
-        }
-        .reservation-card:hover { border-color: #7cc3ef; }
-        .reservation-card .time {
-            grid-row: 1 / -1; grid-column: 1;
-            font-weight: 800; font-size: 0.9rem; color: white;
-            background: #7cc3ef;
-            display: flex; align-items: center; justify-content: center;
-            writing-mode: horizontal-tb;
-        }
-        .reservation-card.status-arrived .time { background: #10b981; }
-        .reservation-card.status-noshow .time { background: #ef4444; }
-        .reservation-card .card-top {
-            grid-row: 1; grid-column: 2;
-            display: flex; justify-content: space-between; align-items: flex-start;
-            padding: 6px 10px 0 10px; gap: 8px;
-        }
-        .reservation-card .client-info { display: flex; flex-direction: row; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-        .reservation-card .client-info .name { font-weight: 700; color: #1e293b; font-size: 0.85rem; }
-        .reservation-card .client-info .phone { font-size: 0.65rem; color: var(--text-muted); }
-        .reservation-card .meta-info { display: flex; gap: 6px; flex-shrink: 0; font-size: 0.6rem; color: var(--text-muted); }
-        .reservation-card .meta-info span { display: inline-flex; align-items: center; gap: 2px; }
-        .reservation-card .items-summary {
-            grid-row: 2; grid-column: 2;
-            display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
-            padding: 5px 10px 2px 10px;
-        }
-        .reservation-card .items-summary .bike-tag {
-            display: inline-flex; align-items: center; gap: 2px;
-            background: #f1f5f9; padding: 2px 8px; border-radius: 50px;
-            font-size: 0.68rem; font-weight: 600; color: #475569;
-        }
-        .reservation-card .items-summary .bike-tag.long { background: #fef3c7; color: #92400e; }
-        .reservation-card .action-btns {
-            grid-row: 3; grid-column: 2;
-            display: flex; gap: 5px; padding: 2px 10px 6px 10px;
-            border-top: 1px solid #e2e8f0; margin-top: 4px;
-            padding-top: 5px;
-        }
-        .reservation-card .action-btns .btn { padding: 4px 14px; font-size: 0.75rem; border-radius: 50px; font-weight: 700; }
-        .reservation-card .action-btns .btn-success { background: #d1fae5; color: #065f46; }
-        .reservation-card .action-btns .btn-success:hover { background: #10b981; color: white; }
-        .reservation-card .action-btns .btn-warning { background: #fee2e2; color: #991b1b; }
-        .reservation-card .action-btns .btn-warning:hover { background: #ef4444; color: white; }
-        .reservation-card .menu-btn {
-            position: absolute; top: 4px; right: 6px;
-            background: none; border: none; cursor: pointer;
-            font-size: 1.15rem; font-weight: 700; color: #94a3b8;
-            padding: 2px 5px; line-height: 1; border-radius: 4px;
-            z-index: 2;
-        }
-        .reservation-card .menu-btn:hover { color: #1e293b; background: #f1f5f9; }
-        .context-menu {
-            display: none; position: absolute; top: 26px; right: 6px;
-            background: white; border: 1px solid #e2e8f0; border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 10;
-            min-width: 140px; overflow: hidden;
-        }
-        .context-menu.open { display: block; }
-        .context-menu button {
-            display: block; width: 100%; padding: 8px 14px;
-            background: none; border: none; text-align: left;
-            font-size: 0.78rem; font-weight: 600; cursor: pointer;
-            color: #1e293b; transition: background 0.1s;
-        }
-        .context-menu button:hover { background: #f8fafc; }
-        .context-menu button:first-child { border-bottom: 1px solid #f1f5f9; }
-        .context-menu .menu-danger { color: var(--danger); }
-
-        .reservation-card { background: var(--card-bg); }
-        .reservation-card.status-arrived { background: #f0fdf4; border-color: #bbf7d0; }
-        .reservation-card.status-noshow { background: #fef2f2; border-color: #fecaca; opacity: 0.7; }
-
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); font-style: italic; }
-        .empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
-
         .db-status { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; padding: 3px 10px; border-radius: 50px; font-weight: 600; }
         .db-status.online { background: #d1fae5; color: #065f46; }
         .db-status.offline { background: #fee2e2; color: #991b1b; }
 
-        .toast {
-            position: fixed; bottom: 25px; right: 25px; padding: 10px 20px;
-            border-radius: 10px; color: white; font-weight: 600; font-size: 0.85rem;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15); z-index: 9999;
-            transform: translateY(100px); opacity: 0;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-        }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast.success { background: var(--success); }
-        .toast.error { background: var(--danger); }
-        .toast.info { background: #0082b4; }
+        .btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: #1e293b; }
+        .btn-outline:hover { border-color: #7cc3ef; }
+        .btn-sm { padding: 4px 10px; font-size: 0.7rem; }
 
-        #walkin-grid { display: flex; gap: 6px; flex-wrap: wrap; }
-
-        /* Bike type manager */
-        .bike-type-row {
-            display: flex; align-items: center; gap: 6px;
-            padding: 6px 8px; border-bottom: 1px solid var(--border);
-        }
-        .bike-type-row:last-child { border-bottom: none; }
-        .bike-type-row .bt-icon { font-size: 1.1rem; width: 24px; text-align: center; }
-        .bike-type-row .bt-key { font-size: 0.7rem; color: var(--text-muted); font-family: monospace; width: 90px; }
-        .bike-type-row .bt-label { font-weight: 600; flex: 1; font-size: 0.8rem; }
-        .bike-type-row .bt-default { width: 50px; text-align: center; font-size: 0.8rem; color: var(--text-muted); }
-
-        @media (max-width: 700px) {
-            .walkin-item { flex: 1 1 100%; min-width: 100%; }
-            .reservation-card { grid-template-columns: 1fr; }
-            .reservation-card .time {
-                grid-row: 1; grid-column: 1;
-                writing-mode: horizontal-tb; letter-spacing: 0;
-                padding: 4px 8px; font-size: 0.78rem;
-                justify-content: flex-start; border-radius: 9px 9px 0 0;
-            }
-            .reservation-card .card-top { grid-row: 2; grid-column: 1; flex-wrap: wrap; }
-            .reservation-card .items-summary { grid-row: 3; grid-column: 1; }
-            .reservation-card .action-btns { grid-row: 4; grid-column: 1; }
-            .bike-qty-grid { grid-template-columns: 1fr; }
-            .admin-header h1 { font-size: 1.2rem; }
-        }
+        .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; min-width: 100%; background: var(--card-bg); }
+        th { background: #7cc3ef; color: white; padding: 12px 14px; text-align: left; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+        td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8fafc; }
     </style>
 </head>
 <body>
@@ -371,200 +117,18 @@
             <div class="logo"><a href="index.html"><img src="assets/logo_veloc.png" alt="Logo" class="logo-img"></a></div>
             <nav>
                 <a href="index.html">← Retour au site</a>
-                <a href="procedures.html">📋 Procédures</a>
                 <a href="connexion.html">👥 Employés</a>
-                <span id="db-indicator" class="db-status offline">📁 Local</span>
             </nav>
         </div>
     </header>
 
+    <!-- ⏱️ TEMPS DE LECTURE PAR PROCÉDURE -->
     <section class="admin-section">
-        <div class="container">
-            <h1 style="text-align: center;margin: 0 0 30px">📋 Réservations</h1>
-            <div class="admin-header">
-                <button id="add-reservation-btn" class="btn btn-success">➕ Nouvelle</button>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                    <div class="device-name-row">
-                        <label>Poste :</label>
-                        <input type="text" id="device-name-input" placeholder="ex: Accueil" maxlength="20">
-                    </div>
-                    <button id="refresh-btn" class="btn btn-outline btn-sm">🔄</button>
-                    <button id="export-btn" class="btn btn-primary btn-sm">📥 CSV</button>
-                </div>
-            </div>
+        <div class="container" style="max-width:1400px;">
+            <h1 style="text-align:center;margin:0 0 30px;">👥 Temps de lecture par procédure</h1>
 
-            <div class="date-nav">
-                <button id="prev-day">◀</button>
-                <div class="date-row">
-                    <input type="date" id="date-picker">
-                    <div class="date-display" id="date-display">-</div>
-                </div>
-                <button id="today-btn">Aujourd'hui</button>
-                <button id="next-day">▶</button>
-            </div>
-
-            <div class="stock-bar-container" id="stock-container">
-                <!-- Généré dynamiquement par JS -->
-            </div>
-
-            <!-- FLUX LIBRE -->
-            <div style="background:var(--card-bg);border-radius:12px;padding:12px 14px;border:1px solid var(--border);margin-bottom:16px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <h2 style="font-size:0.9rem;color:#1e293b;margin:0;">📍 Flux libre <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;">(clients sans réservation)</span></h2>
-                    <button id="walkin-reset-btn" class="btn btn-outline btn-sm">🔄 Réinitialiser</button>
-                </div>
-                <div id="walkin-grid" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-            </div>
-
-            <div class="main-layout">
-                <div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <h2 style="font-size:1rem;color:#1e293b;margin:0;" id="reservations-title">Réservations</h2>
-                        <span style="font-size:0.8rem;color:var(--text-muted);" id="reservations-count"></span>
-                    </div>
-                    <div class="reservations-list" id="reservations-list"></div>
-                    <div id="empty-state" class="empty-state">
-                        <div class="icon">📭</div>
-                        <p>Aucune réservation pour ce jour.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- FLOTTE + GESTION VÉLOS -->
-            <div style="margin-top:20px;">
-                <div class="form-card" style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border:1px solid var(--border);">
-                    <h2 style="font-size:0.9rem;color:#1e293b;margin:0 0 8px 0;padding-bottom:6px;border-bottom:2px solid #7cc3ef;">
-                        🔧 Flotte
-                        <button id="toggle-fleet-edit" class="btn btn-outline btn-sm" style="float:right;">✏️ Modifier</button>
-                        <button id="manage-bike-types-btn" class="btn btn-outline btn-sm" style="float:right;margin-right:6px;">⚙️ Vélos</button>
-                    </h2>
-                    <div id="fleet-static" style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">
-                        <!-- Généré dynamiquement par JS -->
-                    </div>
-                    <div id="fleet-edit" style="display:none;margin-top:8px;">
-                        <div id="fleet-edit-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
-                            <!-- Généré dynamiquement par JS -->
-                        </div>
-                        <div style="display:flex;gap:6px;margin-top:6px;">
-                            <button id="fleet-save-btn" class="btn btn-success btn-sm">💾 Sauvegarder</button>
-                            <button id="fleet-cancel-btn" class="btn btn-outline btn-sm">Annuler</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- MODAL POPUP réservation -->
-    <div class="modal-overlay" id="reservation-modal">
-        <div class="modal-content">
-            <button class="modal-close" id="modal-close">&times;</button>
-            <h2 id="form-title">➕ Nouvelle réservation</h2>
-            <form id="reservation-form" novalidate>
-                <input type="hidden" id="edit-id" value="">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Prénom *</label>
-                        <input type="text" id="client-name" required placeholder="Jean">
-                    </div>
-                    <div class="form-group">
-                        <label>Téléphone *</label>
-                        <input type="tel" id="client-phone" required placeholder="0612345678">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Date & heure de début *</label>
-                    <input type="datetime-local" id="start-date" required>
-                    <div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px;">📅 Réservation à partir de demain · ⏰ Dernière réservation à 10h45 (valable 15 min)</div>
-                </div>
-                <div class="form-group">
-                    <label style="font-size:0.85rem;color:#7cc3ef;">🚲 Vélos et accessoires</label>
-                </div>
-                <div class="bike-qty-grid" id="bike-qty-grid">
-                    <!-- Généré dynamiquement par JS -->
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="long-duration">
-                    <label for="long-duration">📅 Longue durée (+ieurs jours)</label>
-                </div>
-                <div class="duration-input" id="duration-input">
-                    <div class="form-row" style="gap:8px;">
-                        <div class="form-group" style="margin-bottom:0;"><label>Nombre de jours</label><input type="number" id="duration-days" value="2" min="2" max="30"></div>
-                        <div class="form-group" style="margin-bottom:0;"><label>Jusqu'au</label><input type="date" id="end-date-display" readonly style="background:#f1f5f9;"></div>
-                    </div>
-                </div>
-                <div class="form-group"><label>Notes (optionnel)</label><input type="text" id="notes" placeholder="Casque, antivol..."></div>
-                <div style="display:flex;gap:8px;">
-                    <button type="submit" class="btn btn-success btn-full" id="submit-btn">✅ Enregistrer</button>
-                    <button type="button" class="btn btn-outline" id="cancel-edit-btn" style="display:none;">✕ Annuler</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL GESTION TYPES DE VÉLOS -->
-    <div class="modal-overlay" id="bike-types-modal">
-        <div class="modal-content">
-            <button class="modal-close" id="bike-types-modal-close">&times;</button>
-            <h2>⚙️ Types de vélos</h2>
-            <div style="margin-bottom:12px;">
-                <button id="add-bike-type-btn" class="btn btn-success btn-sm">➕ Ajouter un type</button>
-            </div>
-            <div id="bike-types-list">
-                <!-- Généré dynamiquement par JS -->
-            </div>
-            <div style="margin-top:12px;text-align:right;">
-                <button id="bike-types-done-btn" class="btn btn-primary">✅ Terminé</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL ÉDITION TYPE DE VÉLO -->
-    <div class="modal-overlay" id="bike-type-edit-modal">
-        <div class="modal-content" style="max-width:400px;">
-            <button class="modal-close" id="bike-type-edit-close">&times;</button>
-            <h2 id="bike-type-edit-title">✏️ Modifier un type</h2>
-            <form id="bike-type-edit-form">
-                <input type="hidden" id="bike-type-edit-original-key" value="">
-                <div class="form-group">
-                    <label>Identifiant (clé unique, ex: velo-electrique)</label>
-                    <input type="text" id="bike-type-edit-key" required placeholder="ex: vae">
-                </div>
-                <div class="form-group">
-                    <label>Nom affiché</label>
-                    <input type="text" id="bike-type-edit-label" required placeholder="ex: VAE">
-                </div>
-                <div class="form-group">
-                    <label>Icône (emoji)</label>
-                    <input type="text" id="bike-type-edit-icon" required placeholder="ex: ⚡" maxlength="2">
-                </div>
-                <div class="form-group">
-                    <label>Description (optionnelle, ex: âge)</label>
-                    <input type="text" id="bike-type-edit-description" placeholder="ex: 4 à 6 ans">
-                </div>
-                <div class="form-group">
-                    <label>Quantité par défaut</label>
-                    <input type="number" id="bike-type-edit-default" min="0" value="0">
-                </div>
-                <div style="display:flex;gap:8px;">
-                    <button type="submit" class="btn btn-success btn-full">💾 Sauvegarder</button>
-                    <button type="button" class="btn btn-outline" id="bike-type-edit-cancel">Annuler</button>
-                </div>
-                <div style="margin-top:8px;">
-                    <button type="button" id="bike-type-edit-delete" class="btn btn-danger btn-sm" style="width:100%;">🗑️ Supprimer ce type</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ⏱️ TEMPS DE CONSULTATION PAR PROCÉDURE -->
-    <div style="max-width:1400px;margin:0 auto;padding:0 20px 40px;">
-        <div style="background:var(--card-bg);border-radius:12px;padding:14px 16px;border:1px solid var(--border);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-                <h2 style="font-size:0.9rem;color:#1e293b;margin:0;">
-                    👥 Temps de lecture par procédure
-                    <button id="employee-time-refresh" class="btn btn-outline btn-sm" style="margin-left:8px;">🔄</button>
-                </h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+                <button id="employee-time-refresh" class="btn btn-outline btn-sm">🔄 Rafraîchir</button>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                     <button id="emp-time-today" class="btn btn-outline btn-sm">📅 Aujourd'hui</button>
                     <button id="emp-time-all" class="btn btn-outline btn-sm" style="border-color:#7cc3ef;">🗓️ Tout</button>
@@ -572,11 +136,11 @@
             </div>
 
             <!-- Totaux par employé -->
-            <div id="emp-time-totals" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+            <div id="emp-time-totals" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
 
             <!-- Tableau des temps par procédure -->
-            <div class="table-container" style="margin-bottom:0;">
-                <table id="emp-time-table" style="min-width:100%;">
+            <div class="table-container">
+                <table>
                     <thead>
                         <tr>
                             <th>Employé</th>
@@ -596,19 +160,75 @@
                 </table>
             </div>
         </div>
-    </div>
+    </section>
 
     <footer>
         <div class="container text-center">
             <p>&copy; 2026 Véloc'Annecy · <a href="index.html" style="color:#64748b;text-decoration:underline;font-size:0.8rem;">Retour au site</a></p>
         </div>
     </footer>
-    <div id="toast" class="toast"></div>
+
     <script src="supabase.js"></script>
-    <script src="admin.js"></script>
     <script>
         // ============================================================
-        // TEMPS DE CONSULTATION DES PROCÉDURES (EMPLOYÉS)
+        // CODE PIN
+        // ============================================================
+        const PIN_CODE = '3300';
+        const UNLOCKED_KEY = 'veloc_admin_unlocked';
+
+        function setupPinScreen() {
+            const overlay = document.getElementById('pin-overlay');
+            if (!overlay) return;
+
+            if (localStorage.getItem(UNLOCKED_KEY) === '1') {
+                overlay.classList.add('hidden');
+                initTimeView();
+                return;
+            }
+
+            const dots = overlay.querySelectorAll('.dot');
+            const errorEl = document.getElementById('pin-error');
+            const delBtn = document.getElementById('pin-delete');
+            let pin = '';
+
+            function updateDots(wrong) {
+                dots.forEach((d, i) => {
+                    d.classList.remove('filled', 'wrong');
+                    if (i < pin.length) d.classList.add('filled');
+                    if (wrong) d.classList.add('wrong');
+                });
+            }
+            function clearError() { if (errorEl) errorEl.textContent = ''; }
+
+            overlay.addEventListener('click', (e) => {
+                const numBtn = e.target.closest('[data-num]');
+                if (numBtn) {
+                    clearError();
+                    if (pin.length >= 4) return;
+                    pin += numBtn.dataset.num;
+                    updateDots(false);
+                    if (pin.length === 4) {
+                        if (pin === PIN_CODE) {
+                            localStorage.setItem(UNLOCKED_KEY, '1');
+                            overlay.classList.add('hidden');
+                            initTimeView();
+                        } else {
+                            if (errorEl) errorEl.textContent = '❌ Code incorrect';
+                            updateDots(true);
+                            setTimeout(() => { pin = ''; updateDots(false); }, 600);
+                        }
+                    }
+                }
+                if (e.target === delBtn || e.target.closest('#pin-delete')) {
+                    clearError();
+                    pin = pin.slice(0, -1);
+                    updateDots(false);
+                }
+            });
+        }
+
+        // ============================================================
+        // TEMPS DE LECTURE PAR PROCÉDURE
         // ============================================================
         let empTimeMode = 'all'; // 'all' | 'today'
 
@@ -641,9 +261,8 @@
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Chargement...</td></tr>';
             totalsEl.innerHTML = '';
 
-            // Attendre que Supabase soit initialisé par admin.js
             if (!window._supabase) {
-                try { initSupabase(); } catch (e) { /* déjà initialisé */ }
+                try { initSupabase(); } catch (e) { /* déjà init */ }
             }
 
             if (!window._supabase) {
@@ -715,7 +334,7 @@
                 ).join('') ||
                     '<div style="font-size:0.8rem;color:var(--text-muted);font-style:italic;">Aucune donnée.</div>';
 
-                // --- Tableau des temps par procédure ---
+                // --- Tableau ---
                 if (aggRows.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic;">Aucune lecture enregistrée.</td></tr>';
                     return;
@@ -735,25 +354,30 @@
             }
         }
 
-        // Boutons filtre
-        document.getElementById('emp-time-today').addEventListener('click', () => {
-            empTimeMode = 'today';
-            document.getElementById('emp-time-today').style.borderColor = '#7cc3ef';
-            document.getElementById('emp-time-all').style.borderColor = 'var(--border)';
-            loadEmployeeTime();
-        });
+        function initTimeView() {
+            // Boutons filtre
+            document.getElementById('emp-time-today').addEventListener('click', () => {
+                empTimeMode = 'today';
+                document.getElementById('emp-time-today').style.borderColor = '#7cc3ef';
+                document.getElementById('emp-time-all').style.borderColor = 'var(--border)';
+                loadEmployeeTime();
+            });
 
-        document.getElementById('emp-time-all').addEventListener('click', () => {
-            empTimeMode = 'all';
-            document.getElementById('emp-time-all').style.borderColor = '#7cc3ef';
-            document.getElementById('emp-time-today').style.borderColor = 'var(--border)';
-            loadEmployeeTime();
-        });
+            document.getElementById('emp-time-all').addEventListener('click', () => {
+                empTimeMode = 'all';
+                document.getElementById('emp-time-all').style.borderColor = '#7cc3ef';
+                document.getElementById('emp-time-today').style.borderColor = 'var(--border)';
+                loadEmployeeTime();
+            });
 
-        document.getElementById('employee-time-refresh').addEventListener('click', loadEmployeeTime);
+            document.getElementById('employee-time-refresh').addEventListener('click', loadEmployeeTime);
 
-        // Charger après que admin.js ait initialisé Supabase (avec un délai)
-        setTimeout(loadEmployeeTime, 2500);
+            // Charger avec un petit délai pour laisser Supabase s'initialiser
+            setTimeout(loadEmployeeTime, 1000);
+        }
+
+        // Démarrage
+        setupPinScreen();
     </script>
 </body>
 </html>
