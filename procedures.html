@@ -1608,12 +1608,16 @@
         }
 
         // ===== SUIVI DU TEMPS ACTIF =====
+        // Le temps n'est compté QUE lorsque l'onglet est visible (premier plan).
+        // Dès que l'utilisateur quitte l'onglet, le chrono est mis en pause.
         let activeSeconds = 0;
         let lastTick = Date.now();
-        let isPageVisible = document.visibilityState === 'visible';
         let syncInProgress = false;
+        let lastSyncSeconds = -1;
+        let lastSync = false;
+        let isPageVisible = document.visibilityState === 'visible';
 
-        // Secondes écoulées depuis le dernier tick (avec pause si onglet masqué)
+        // Secondes écoulées depuis le dernier tick (0 si l'onglet est masqué)
         function computeElapsed() {
             if (!isPageVisible) return 0;
             const now = Date.now();
@@ -1622,21 +1626,61 @@
             return elapsed;
         }
 
+        // Tenter de récupérer une session Supabase existante si la session
+        // a été créée en mode local (fallback) ou si l'id local doit être migré.
+        async function ensureDbSession() {
+            if (!window._supabase || session.dbOnline) return;
+            try {
+                const { data, error } = await window._supabase
+                    .from('employee_sessions')
+                    .insert([{
+                        employee_name: session.employeeName,
+                        device_name: session.deviceName || '',
+                        user_agent: navigator.userAgent.slice(0, 250)
+                    }])
+                    .select('id')
+                    .single();
+                if (!error && data) {
+                    session.sessionId = data.id;
+                    session.dbOnline = true;
+                    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+                }
+            } catch (e) {
+                console.warn('⚠️ Migration session locale impossible:', e.message);
+            }
+        }
+
         // Synchroniser les secondes actives vers Supabase
-        async function syncSession() {
+        async function syncSession(force = false) {
             if (syncInProgress || !session) return;
-            if (activeSeconds < 5 && !session._finalizing) return;
+            if (!force && activeSeconds - lastSyncSeconds < 5) return;
 
             syncInProgress = true;
             try {
                 if (window._supabase && session.dbOnline) {
-                    await window._supabase
+                    const { error } = await window._supabase
                         .from('employee_sessions')
                         .update({
                             active_seconds: activeSeconds,
                             logout_time: new Date().toISOString()
                         })
                         .eq('id', session.sessionId);
+                    if (!error) {
+                        lastSyncSeconds = activeSeconds;
+                    }
+                } else if (window._supabase) {
+                    // Session locale → tenter de la migrer en Supabase
+                    await ensureDbSession();
+                    if (session.dbOnline) {
+                        const { error } = await window._supabase
+                            .from('employee_sessions')
+                            .update({
+                                active_seconds: activeSeconds,
+                                logout_time: new Date().toISOString()
+                            })
+                            .eq('id', session.sessionId);
+                        if (!error) lastSyncSeconds = activeSeconds;
+                    }
                 }
             } catch (e) {
                 console.warn('⚠️ Sync session impossible:', e.message);
@@ -1672,24 +1716,37 @@
             }
         }
 
-        // Timer principal : 1 tick par seconde, sync toutes les 30s
+        // Timer principal : 1 tick par seconde, sync toutes les 30s,
+        // et premier enregistrement après 5 secondes de présence.
         setInterval(() => {
             activeSeconds += computeElapsed();
+
+            // Première sync après 5s pour enregistrer même une visite courte
+            if (!lastSync && activeSeconds >= 5) {
+                lastSync = true;
+                syncSession(true);
+                return;
+            }
+
+            // Sync périodique toutes les 30s
             if (activeSeconds > 0 && activeSeconds % 30 === 0) {
                 syncSession();
             }
         }, 1000);
 
-        // Visibilité de l'onglet
+        // Visibilité de l'onglet : le chrono tourne UNIQUEMENT quand l'onglet
+        // est au premier plan. Passage en arrière-plan → pause + synchronisation.
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
+                // Retour sur l'onglet : on relance le chrono et on synchronise
                 isPageVisible = true;
                 lastTick = Date.now();
+                syncSession(true);
             } else {
-                // Onglet masqué → mettre à jour le temps et synchroniser
+                // Onglet masqué : on cumule les dernières secondes puis pause
                 activeSeconds += computeElapsed();
                 isPageVisible = false;
-                syncSession();
+                syncSession(true);
             }
         });
 
